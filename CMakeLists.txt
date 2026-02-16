@@ -1,22 +1,12 @@
 cmake_minimum_required(VERSION 3.22)
 
 # ─── macOS deployment / SDK ──────────────────────────────────────────────────
-# JUCE 8.0.x uses CGWindowListCreateImage which was removed in the macOS 15 SDK
-# (Xcode 16).  Targeting macOS 14 keeps the symbol available.
-# Override at configure time: cmake … -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0
 if(APPLE AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "14.0" CACHE STRING
         "Minimum macOS version – 14.0 avoids JUCE 8 / Xcode 16 SDK conflicts" FORCE)
 endif()
-
-# The Xcode 16 SDK still ships the old headers but marks them unavailable.
-# Tell the compiler to treat them as merely deprecated (warnings, not errors)
-# so juceaide can finish building.  This flag is harmless on older SDKs.
 if(APPLE)
-    add_compile_options(-Wno-error=unavailable)
-    # Also silence the flood of -Wdeprecated-declarations from JUCE internals;
-    # these are JUCE's own macOS 15 compat issues, not our code.
-    add_compile_options(-Wno-deprecated-declarations)
+    add_compile_options(-Wno-error=unavailable -Wno-deprecated-declarations)
 endif()
 
 project(SquareWaveSynth VERSION 1.0.0)
@@ -24,39 +14,63 @@ project(SquareWaveSynth VERSION 1.0.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# ─── JUCE ────────────────────────────────────────────────────────────────────
-# Option A: JUCE as a subdirectory (git submodule) – preferred for CI/CD
-# Option B: Fetched automatically via FetchContent (requires network)
-# Toggle with -DJUCE_SOURCE_DIR=/path/to/JUCE or leave blank for FetchContent.
+include(FetchContent)
 
+# ─── JUCE ────────────────────────────────────────────────────────────────────
 if(DEFINED JUCE_SOURCE_DIR AND EXISTS "${JUCE_SOURCE_DIR}")
     message(STATUS "Using JUCE from: ${JUCE_SOURCE_DIR}")
     add_subdirectory(${JUCE_SOURCE_DIR} ${CMAKE_BINARY_DIR}/JUCE)
 else()
-    message(STATUS "JUCE_SOURCE_DIR not set – fetching via FetchContent")
-    include(FetchContent)
+    message(STATUS "Fetching JUCE via FetchContent")
     FetchContent_Declare(
         JUCE
         GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-        GIT_TAG        8.0.12   # JUCE 8 – latest stable
+        GIT_TAG        8.0.12
         GIT_SHALLOW    TRUE
     )
     FetchContent_MakeAvailable(JUCE)
 endif()
 
-# ─── Plugin formats ──────────────────────────────────────────────────────────
-# VST3 is cross-platform; AU is macOS-only (JUCE handles the guard internally).
+# ─── ymfm ────────────────────────────────────────────────────────────────────
+# ymfm has no CMakeLists, so we fetch the source and build only what we need.
+FetchContent_Declare(
+    ymfm
+    GIT_REPOSITORY https://github.com/aaronsgiles/ymfm.git
+    GIT_TAG        main
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(ymfm)
+
+# Build the ymfm sources we need as a static library.
+# YM2612 = OPN2 family, lives in ymfm_opn.cpp.
+# ymfm_opn.cpp depends on ymfm_adpcm and ymfm_ssg internally.
+add_library(ymfm_lib STATIC
+    ${ymfm_SOURCE_DIR}/src/ymfm_misc.cpp
+    ${ymfm_SOURCE_DIR}/src/ymfm_ssg.cpp
+    ${ymfm_SOURCE_DIR}/src/ymfm_adpcm.cpp
+    ${ymfm_SOURCE_DIR}/src/ymfm_opn.cpp
+)
+target_include_directories(ymfm_lib PUBLIC ${ymfm_SOURCE_DIR}/src)
+# ymfm is C++14-compatible; use 17 to match our plugin
+set_target_properties(ymfm_lib PROPERTIES CXX_STANDARD 17)
+# Suppress warnings from ymfm internals – not our code
+if(APPLE OR UNIX)
+    target_compile_options(ymfm_lib PRIVATE -Wno-all -Wno-extra)
+elseif(MSVC)
+    target_compile_options(ymfm_lib PRIVATE /W0)
+endif()
+
+# ─── Plugin target ───────────────────────────────────────────────────────────
 set(PLUGIN_FORMATS VST3)
 if(APPLE)
     list(APPEND PLUGIN_FORMATS AU)
 endif()
 
-# ─── Plugin target ───────────────────────────────────────────────────────────
 juce_add_plugin(SquareWaveSynth
     COMPANY_NAME            "YourCompany"
     BUNDLE_ID               "com.yourcompany.squarewavesynth"
     PLUGIN_MANUFACTURER_CODE "YrCo"
-    PLUGIN_CODE              "SqWv"
+    PLUGIN_CODE              "Ym26"
 
     FORMATS                 ${PLUGIN_FORMATS}
 
@@ -66,12 +80,10 @@ juce_add_plugin(SquareWaveSynth
     IS_MIDI_EFFECT          FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
 
-    PRODUCT_NAME            "SquareWaveSynth"
+    PRODUCT_NAME            "YM2612 Synth"
     VERSION                 "1.0.0"
 
-    # VST3 category
     VST3_CATEGORIES         "Instrument" "Synths"
-    # AU type: 'aumu' = Music Device (instrument)
     AU_MAIN_TYPE            "kAudioUnitType_MusicDevice"
 )
 
@@ -85,16 +97,9 @@ target_sources(SquareWaveSynth
         Source/Ym2612Voice.h
         Source/SynthSound.h
         Source/MidiKeyboardComponent.h
-        # MAME YM2612 emulator core (C, GPL v2+) – compiled as C not C++
-        Source/mame/mame_ym2612fm.c
-        Source/mame/mame_ym2612fm.h
-        Source/mame/mamedef.h
 )
 
-# The MAME YM2612 source is plain C99; tell CMake to compile it as C
-set_source_files_properties(Source/mame/mame_ym2612fm.c PROPERTIES LANGUAGE C)
-
-# ─── JUCE modules ────────────────────────────────────────────────────────────
+# ─── Compile definitions ──────────────────────────────────────────────────────
 target_compile_definitions(SquareWaveSynth
     PUBLIC
         JUCE_WEB_BROWSER=0
@@ -103,14 +108,16 @@ target_compile_definitions(SquareWaveSynth
         JUCE_DISPLAY_SPLASH_SCREEN=0
 )
 
+# ─── Link libraries ───────────────────────────────────────────────────────────
 target_link_libraries(SquareWaveSynth
     PRIVATE
+        ymfm_lib                        # <── ymfm FM emulation
         juce::juce_audio_basics
         juce::juce_audio_devices
         juce::juce_audio_formats
         juce::juce_audio_plugin_client
         juce::juce_audio_processors
-        juce::juce_audio_utils          # MidiKeyboardComponent lives here
+        juce::juce_audio_utils
         juce::juce_core
         juce::juce_data_structures
         juce::juce_events
@@ -119,11 +126,6 @@ target_link_libraries(SquareWaveSynth
         juce::juce_gui_extra
     PUBLIC
         juce::juce_recommended_config_flags
-        # juce_recommended_warning_flags promotes -Wdeprecated to errors,
-        # which breaks JUCE 8 on the macOS 15 SDK (Xcode 16).
-        # Re-enable once JUCE fixes CGWindowListCreateImage / CVDisplayLink.
-        # juce::juce_recommended_warning_flags
-        # juce::juce_recommended_lto_flags  # optional, slows clean builds
 )
 
 # ─── IDE source grouping ─────────────────────────────────────────────────────
@@ -133,16 +135,3 @@ source_group("Source" FILES
     Source/Ym2612Voice.h
     Source/SynthSound.h
 )
-source_group("Source/mame" FILES
-    Source/mame/mame_ym2612fm.c
-    Source/mame/mame_ym2612fm.h
-    Source/mame/mamedef.h
-)
-
-# ─── Install / copy to plugin folders (optional) ─────────────────────────────
-# Uncomment to auto-copy after build on macOS:
-# add_custom_command(TARGET SquareWaveSynth POST_BUILD
-#     COMMAND ${CMAKE_COMMAND} -E copy_directory
-#         "$<TARGET_FILE_DIR:SquareWaveSynth_VST3>"
-#         "$ENV{HOME}/Library/Audio/Plug-Ins/VST3"
-# )

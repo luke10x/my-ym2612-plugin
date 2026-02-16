@@ -98,7 +98,7 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
     // Title text
     g.setColour(accent);
     g.setFont(juce::Font(20.0f, juce::Font::bold));
-    g.drawText("YM2612 Synth", titleR, juce::Justification::centred, false);
+    g.drawText("YM2612 Synth v2", titleR, juce::Justification::centred, false);
 
     // Subtitle
     g.setColour(dim);

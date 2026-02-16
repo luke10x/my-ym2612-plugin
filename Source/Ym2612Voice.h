@@ -1,125 +1,165 @@
 #pragma once
+
 #include <juce_audio_basics/juce_audio_basics.h>
-#include <array>
 #include <atomic>
 #include <vector>
+#include <cstring>
 
-extern "C" {
-#include "mame/mame_ym2612fm.h"
-}
+// ymfm: YM2612 (OPN2) from aaronsgiles/ymfm
+#include "ymfm_opn.h"
 
 #include "SynthSound.h"
 
-/**
- * Ym2612Voice
- * -----------
- * One JUCE SynthesiserVoice = one YM2612 chip instance, driving channel 0.
- *
- * Register write convention for the new emulator core:
- *   ym2612_write(chip, 0, reg)  -> address latch, part 0 (channels 0-2)
- *   ym2612_write(chip, 1, val)  -> data write,    part 0
- *   ym2612_write(chip, 2, reg)  -> address latch, part 1 (channels 3-5)
- *   ym2612_write(chip, 3, val)  -> data write,    part 1
- *
- * Key-on register 0x28 (always part 0):
- *   bits [7:4] = OP mask (0xF0 = all 4 on)
- *   bits [2:0] = channel (0-2 for part0, 4-6 for part1)
- *
- * Parameters:
- *   opLevel[0..3] – TL for each operator (0=loud, 127=silent)
- *   Exposed as "level" in the editor (0=silent, 127=loud), inverted here.
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// PluginYmfmInterface
+//
+// ymfm chips require a host interface for timer callbacks and memory reads.
+// We don't need timers for a synthesiser plugin (we drive the clock manually),
+// so all methods are stubbed out.  The chip still works correctly without them.
+// ─────────────────────────────────────────────────────────────────────────────
+class PluginYmfmInterface : public ymfm::ymfm_interface
+{
+public:
+    // ymfm calls these when the chip raises/clears its IRQ line – not needed.
+    void ymfm_set_timer(uint32_t, int32_t) override {}
+    void ymfm_sync_mode_write(uint8_t) override {}
+    void ymfm_sync_check_interrupts() override {}
+    void ymfm_set_busy_end(uint32_t) override {}
+    // For chips that read external memory (ADPCM ROMs etc.) – YM2612 DAC only
+    uint8_t ymfm_external_read(ymfm::access_class, uint32_t) override { return 0; }
+    void ymfm_external_write(ymfm::access_class, uint32_t, uint8_t) override {}
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ym2612Voice
+//
+// One JUCE SynthesiserVoice = one ymfm::ym2612 chip instance.
+//
+// ymfm design notes
+// -----------------
+// • ymfm chips are clock-driven, not sample-rate-driven.
+//   ym2612::sample_rate(clock) returns the chip's own output rate (~53267 Hz
+//   for the NTSC Mega Drive clock of 7 670 453 Hz).
+// • We call chip.generate() once per chip sample, accumulate into a ring
+//   buffer, then linear-interpolate to the DAW's sample rate in renderNextBlock.
+// • Register writes:
+//     Part 0 (channels 0-2):  write_address(reg)  + write_data(val)
+//     Part 1 (channels 3-5):  write_address_hi(reg) + write_data_hi(val)
+//   Key-on register 0x28 always goes to write_address(0x28)+write_data(val)
+//   regardless of channel.
+// • Output: ymfm::ym2612::output_data::data[0] = left, data[1] = right,
+//   nominally ±(1<<15) per operator sum (scales with number of active ops).
+//
+// Parameters exposed
+// ------------------
+//   opLevel[0..3]  – Total Level for OP1-OP4 (0 = loud, 127 = silent)
+//   Stored as TL directly; the processor inverts the UI "level" before passing.
+// ─────────────────────────────────────────────────────────────────────────────
 class Ym2612Voice : public juce::SynthesiserVoice
 {
 public:
-    static constexpr int YM_CLOCK  = 7670453;  // NTSC Mega Drive
-    static constexpr int FM_CH_IDX = 0;        // use chip channel 0 (part 0)
+    // Mega Drive NTSC master clock
+    static constexpr uint32_t YM_CLOCK = 7'670'453;
 
     Ym2612Voice()
+        : m_chip(m_interface)
     {
-        // In algo 4: slots 0,1 (OP1,OP3) are modulators; 2,3 (OP2,OP4) are carriers.
-        // TL param: 0=silent (TL=127), 127=loud (TL=0).
-        // Carriers default loud, modulators half-open for FM colour.
-        opLevel[0].store(64);   // OP1 modulator
-        opLevel[1].store(64);   // OP3 modulator
-        opLevel[2].store(127);  // OP2 carrier – loud
-        opLevel[3].store(127);  // OP4 carrier – loud
+        // Sensible defaults: carriers loud, modulators half-open
+        m_opTL[0] = 63;   // OP1 modulator
+        m_opTL[1] = 63;   // OP3 modulator
+        m_opTL[2] = 0;    // OP2 carrier (loud)
+        m_opTL[3] = 0;    // OP4 carrier (loud)
     }
 
-    ~Ym2612Voice() override
-    {
-        if (chip) { ym2612_shutdown(chip); chip = nullptr; }
-    }
-
-    /* Called by processor every block for each voice */
-    void setOpLevel(int op, int tl127)
+    // ── Parameter setter (called from processor, audio thread) ──────────────
+    // tl: 0 = max output, 127 = silent  (raw YM2612 TL value)
+    void setOpTL(int op, int tl)
     {
         jassert(op >= 0 && op < 4);
-        opLevel[op].store(juce::jlimit(0, 127, tl127));
-        dirtyParams.store(true);
+        m_opTL[op].store(juce::jlimit(0, 127, tl));
+        m_dirtyTL.store(true);
     }
 
+    // ── SynthesiserVoice ─────────────────────────────────────────────────────
     bool canPlaySound(juce::SynthesiserSound* s) override
     {
         return dynamic_cast<SynthSound*>(s) != nullptr;
     }
 
     void startNote(int midiNote, float velocity,
-                   juce::SynthesiserSound*, int) override
+                   juce::SynthesiserSound*, int /*pitchWheel*/) override
     {
-        ensureChipReady();
-        ym2612_reset_chip(chip);
+        // Rebuild resampling state when the note starts
+        initResamplingState();
+
+        // Full chip reset then program the patch
+        m_chip.reset();
         programPatch();
         setFrequency(juce::MidiMessage::getMidiNoteInHertz(midiNote));
         keyOn();
-        velGain  = velocity * 0.5f;
-        active   = true;
-        releasing = false;
+
+        m_velGain   = velocity;
+        m_active    = true;
+        m_releasing = false;
     }
 
-    void stopNote(float, bool allowTailOff) override
+    void stopNote(float /*velocity*/, bool allowTailOff) override
     {
         keyOff();
         if (allowTailOff) {
-            releasing    = true;
-            releaseTimer = static_cast<int>(getSampleRate() * 0.35);
+            m_releasing    = true;
+            m_releaseTimer = static_cast<int>(getSampleRate() * 0.4);
         } else {
             clearCurrentNote();
-            active = false;
+            m_active = false;
         }
     }
 
     void renderNextBlock(juce::AudioBuffer<float>& output,
                          int startSample, int numSamples) override
     {
-        if (!active || !chip) return;
+        if (!m_active) return;
 
-        if (dirtyParams.exchange(false))
+        // Push fresh TL values if the user moved a knob
+        if (m_dirtyTL.exchange(false))
             writeTL();
 
-        if ((int)bufL.size() < numSamples) {
-            bufL.assign(numSamples, 0);
-            bufR.assign(numSamples, 0);
-        }
-        std::fill(bufL.begin(), bufL.begin() + numSamples, 0);
-        std::fill(bufR.begin(), bufR.begin() + numSamples, 0);
+        const int nch = output.getNumChannels();
+        // ymfm output is nominally ±(1<<15) per operator contributing;
+        // with algo 4 two carriers can sum, so scale by 1/(2 * 32768).
+        const float scale = m_velGain / (2.0f * 32768.0f);
 
-        ym2612_update_one(chip, (UINT32)numSamples, bufL.data(), bufR.data());
-
-        const float scale = velGain / 32768.0f;
-        const int   nch   = output.getNumChannels();
         for (int i = 0; i < numSamples; i++) {
-            float l = juce::jlimit(-1.0f, 1.0f, (float)bufL[i] * scale);
-            float r = juce::jlimit(-1.0f, 1.0f, (float)bufR[i] * scale);
-            if (nch > 0) output.addSample(0, startSample + i, l);
-            if (nch > 1) output.addSample(1, startSample + i, r);
+            // Advance the resampler: generate chip samples until we have
+            // enough to interpolate one DAW sample.
+            while (m_resamplePos >= 1.0) {
+                m_prevSampleL = m_currSampleL;
+                m_prevSampleR = m_currSampleR;
+
+                ymfm::ym2612::output_data out;
+                m_chip.generate(&out);
+
+                m_currSampleL = static_cast<float>(out.data[0]);
+                m_currSampleR = static_cast<float>(out.data[1]);
+                m_resamplePos -= 1.0;
+            }
+
+            // Linear interpolation between previous and current chip sample
+            float t  = static_cast<float>(m_resamplePos);
+            float sl = m_prevSampleL + t * (m_currSampleL - m_prevSampleL);
+            float sr = m_prevSampleR + t * (m_currSampleR - m_prevSampleR);
+
+            if (nch > 0) output.addSample(0, startSample + i, sl * scale);
+            if (nch > 1) output.addSample(1, startSample + i, sr * scale);
+
+            m_resamplePos += m_resampleStep;
         }
 
-        if (releasing) {
-            releaseTimer -= numSamples;
-            if (releaseTimer <= 0) {
+        if (m_releasing) {
+            m_releaseTimer -= numSamples;
+            if (m_releaseTimer <= 0) {
                 clearCurrentNote();
-                active = releasing = false;
+                m_active = m_releasing = false;
             }
         }
     }
@@ -128,112 +168,148 @@ public:
     void controllerMoved(int, int) override {}
 
 private:
-    void* chip = nullptr;
-    bool  active = false, releasing = false;
-    int   releaseTimer = 0;
-    float velGain = 1.0f;
+    // ── ymfm objects ────────────────────────────────────────────────────────
+    PluginYmfmInterface m_interface;
+    ymfm::ym2612        m_chip;
 
-    std::atomic<int>  opLevel[4];
-    std::atomic<bool> dirtyParams { true };
+    // ── Voice state ──────────────────────────────────────────────────────────
+    bool  m_active    = false;
+    bool  m_releasing = false;
+    int   m_releaseTimer = 0;
+    float m_velGain   = 1.0f;
 
-    std::vector<INT32> bufL, bufR;
+    // ── Parameters ───────────────────────────────────────────────────────────
+    std::atomic<int>  m_opTL[4];
+    std::atomic<bool> m_dirtyTL { false };
 
-    void ensureChipReady()
+    // ── Resampling state ─────────────────────────────────────────────────────
+    // The chip runs at its own rate (~53267 Hz); the DAW wants getSampleRate().
+    // m_resampleStep = chipRate / dawRate  (< 1 for 44.1/48 kHz DAW rates)
+    double m_resampleStep = 1.0;
+    double m_resamplePos  = 1.0;   // start at 1 so first call generates a sample
+    float  m_prevSampleL = 0.0f, m_currSampleL = 0.0f;
+    float  m_prevSampleR = 0.0f, m_currSampleR = 0.0f;
+
+    void initResamplingState()
     {
-        if (chip) return;
-        chip = ym2612_init(nullptr, YM_CLOCK,
-                           (int)getSampleRate(), nullptr, nullptr);
-        jassert(chip != nullptr);
+        uint32_t chipRate   = m_chip.sample_rate(YM_CLOCK);
+        m_resampleStep      = static_cast<double>(chipRate) / getSampleRate();
+        m_resamplePos       = 1.0;   // trigger first chip generate immediately
+        m_prevSampleL = m_prevSampleR = 0.0f;
+        m_currSampleL = m_currSampleR = 0.0f;
     }
 
-    /* Write address then data to part 0 (channels 0-2) */
-    void wr(UINT8 reg, UINT8 val)
+    // ── Register write helpers ────────────────────────────────────────────────
+    // Part 0 = channels 0-2 (write_address / write_data)
+    // Part 1 = channels 3-5 (write_address_hi / write_data_hi)
+    void wr0(uint8_t reg, uint8_t val)
     {
-        ym2612_write(chip, 0, reg);   /* address latch part 0 */
-        ym2612_write(chip, 1, val);   /* data */
+        m_chip.write_address(reg);
+        m_chip.write_data(val);
+    }
+    void wr1(uint8_t reg, uint8_t val)
+    {
+        m_chip.write_address_hi(reg);
+        m_chip.write_data_hi(val);
     }
 
-    /* ── Patch ────────────────────────────────────────────────────────────
-     * Algorithm 4: (OP1->OP2) + (OP3->OP4) = OP2 + OP4 summed to output.
-     * A warm analogue-style FM lead similar to the Mega Drive's common patch.
-     *
-     * YM2612 slot register offsets within a channel (ch=0 so base=0):
-     *   OP1 = +0, OP3 = +4, OP2 = +8, OP4 = +12  (hardware numbering)
-     *
-     * DT/MUL format: bits[6:4]=DT(0-7), bits[3:0]=MUL(0-15)
-     * AR/KS  format: bits[7:6]=KS,      bits[4:0]=AR
-     * DR     format: bits[4:0]=DR
-     * SR     format: bits[4:0]=SR
-     * SL/RR  format: bits[7:4]=SL,      bits[3:0]=RR
-     */
+    // ── Patch programming ─────────────────────────────────────────────────────
+    // We use channel 0 (part 0) for all voices.
+    //
+    // YM2612 operator slot layout within one channel:
+    //   Register offset  +0 = OP1,  +4 = OP3,  +8 = OP2,  +12 = OP4
+    // (This is the hardware numbering; the order in the register map is
+    //  OP1, OP3, OP2, OP4 — *not* OP1..OP4 sequentially.)
+    //
+    // Algorithm 4:  (OP1→OP2) + (OP3→OP4)  — both pairs contribute output.
+    //   OP1 and OP3 are modulators; OP2 and OP4 are carriers.
+    //   Feedback on OP1 adds harmonic richness.
+    //
+    // Register format quick-ref:
+    //   0x30  DT[6:4] MUL[3:0]          0x50  KS[7:6] AR[4:0]
+    //   0x60  AM[7]   DR[4:0]           0x70          SR[4:0]
+    //   0x80  SL[7:4] RR[3:0]           0x40          TL[6:0]
+    //   0xB0  FB[5:3] ALG[2:0]          0xA4  BLK[5:3] FN[10:8]
+    //   0xA0  FN[7:0]                   0x28  keyon
     void programPatch()
     {
-        /* Algorithm 4: (OP1->OP2) + (OP3->OP4), summed at output.
-         * OP2 and OP4 are carriers; OP1 and OP3 are modulators.
-         * Feedback 5 on OP1 adds a metallic edge.
-         *
-         * Register offsets within channel 0 (part 0):
-         *   OP1=+0, OP3=+4, OP2=+8, OP4=+12  (YM2612 hardware order)
-         *
-         * Byte formats:
-         *   0x30  DT[6:4] | MUL[3:0]
-         *   0x50  KS[7:6] | AR[4:0]
-         *   0x60  AM[7]   | DR[4:0]
-         *   0x70           SR[4:0]
-         *   0x80  SL[7:4] | RR[3:0]
-         *   0x40  TL[6:0]  (0=loud, 127=silent)
-         */
-        wr(0xB0, (5 << 3) | 4);   /* FB=5, Algo=4 */
-        wr(0xB4, 0xC0);            /* L+R output, no LFO AM/PM */
+        // Algorithm 4, Feedback 5 on OP1
+        wr0(0xB0, (5 << 3) | 4);
+        // Both L+R output, no LFO AM/PM sensitivity
+        wr0(0xB4, 0xC0);
 
-        /*                   DT|MUL   KS|AR   DR      SR    SL|RR  */
-        /* OP1 (modulator) */ wr(0x30, 0x71); wr(0x50, 0x1F); wr(0x60, 0x05); wr(0x70, 0x00); wr(0x80, 0x18);
-        /* OP3 (modulator) */ wr(0x34, 0x0D); wr(0x54, 0x1F); wr(0x64, 0x05); wr(0x74, 0x00); wr(0x84, 0x18);
-        /* OP2 (carrier)   */ wr(0x38, 0x01); wr(0x58, 0x1F); wr(0x68, 0x05); wr(0x78, 0x00); wr(0x88, 0x18);
-        /* OP4 (carrier)   */ wr(0x3C, 0x01); wr(0x5C, 0x1F); wr(0x6C, 0x05); wr(0x7C, 0x00); wr(0x8C, 0x18);
+        // ┌────────┬──────────┬─────┬─────┬──────┬───────┐
+        // │  Slot  │ DT│MUL   │ AR  │ DR  │ SR   │ SL│RR │
+        // ├────────┼──────────┼─────┼─────┼──────┼───────┤
+        // │ OP1 +0 │ DT1,MUL1 │ 31  │  5  │  0   │ 1│10  │  modulator
+        // │ OP3 +4 │ DT0,MUL1 │ 31  │  5  │  0   │ 1│10  │  modulator
+        // │ OP2 +8 │ DT0,MUL1 │ 31  │  5  │  0   │ 1│10  │  carrier
+        // │ OP4+12 │ DT0,MUL1 │ 31  │  5  │  0   │ 1│10  │  carrier
+        // └────────┴──────────┴─────┴─────┴──────┴───────┘
+        //  DT=1→0x10, MUL=1→0x01  combined: 0x11 for OP1, 0x01 for others
+        //  AR=31→0x1F,  KS=0→0x00   combined: 0x1F
+        //  DR= 5→0x05
+        //  SR= 0→0x00
+        //  SL=1 (–3 dB),RR=10:  SL<<4 | RR = 0x1A
 
-        /* Write TL from params; until the processor pushes real values,
-         * default the carriers (OP2/OP4) to TL=0 (loudest) so you hear
-         * something immediately, and modulators to TL=63 (half-open).       */
+        struct SlotPatch { uint8_t dtmul, ksar, dr, sr, slrr; };
+        static const SlotPatch kPatch[4] = {
+            { 0x11, 0x1F, 0x05, 0x00, 0x1A },   // OP1 (+0)
+            { 0x01, 0x1F, 0x05, 0x00, 0x1A },   // OP3 (+4)
+            { 0x01, 0x1F, 0x05, 0x00, 0x1A },   // OP2 (+8)
+            { 0x01, 0x1F, 0x05, 0x00, 0x1A },   // OP4 (+12)
+        };
+        const uint8_t offsets[4] = { 0, 4, 8, 12 };
+
+        for (int op = 0; op < 4; op++) {
+            uint8_t o = offsets[op];
+            wr0(0x30 + o, kPatch[op].dtmul);
+            wr0(0x50 + o, kPatch[op].ksar);
+            wr0(0x60 + o, kPatch[op].dr);
+            wr0(0x70 + o, kPatch[op].sr);
+            wr0(0x80 + o, kPatch[op].slrr);
+        }
         writeTL();
     }
 
-    /* Write TL for all 4 operators from the atomic opLevel params */
     void writeTL()
     {
-        const UINT8 offsets[4] = { 0, 4, 8, 12 };
+        // TL register offsets match the slot offsets: OP1=+0, OP3=+4, OP2=+8, OP4=+12
+        // Our m_opTL array is indexed as the user sees them: [0]=OP1, [1]=OP3, [2]=OP2, [3]=OP4
+        const uint8_t offsets[4] = { 0, 4, 8, 12 };
         for (int op = 0; op < 4; op++)
-            wr(0x40 + offsets[op], (UINT8)opLevel[op].load());
+            wr0(0x40 + offsets[op], static_cast<uint8_t>(m_opTL[op].load()));
     }
 
-    /* ── Frequency ─────────────────────────────────────────────────────── */
+    // ── Frequency ─────────────────────────────────────────────────────────────
+    // F-number formula:  Fn = freq_hz * 2^(20 - block) / (fref)
+    // where fref = YM_CLOCK / 144  (≈ 53267 Hz)
     void setFrequency(double hz)
     {
-        /* F-number = freq * 2^(20-block) / (fref)
-         * fref = YM_CLOCK / 144                                             */
-        const double fref = (double)YM_CLOCK / 144.0;
-        int block = 4;
-        double fn = hz * (double)(1 << (20 - block)) / fref;
-        /* Clamp into [0x200, 0x7FF] by adjusting block */
+        const double fref = static_cast<double>(YM_CLOCK) / 144.0;
+        int    block = 4;
+        double fn    = hz * static_cast<double>(1 << (20 - block)) / fref;
+
+        // Shift block so fn lands in [0x200, 0x7FF]
         while (fn > 0x7FF && block < 7) { block++; fn /= 2.0; }
         while (fn < 0x200 && block > 0) { block--; fn *= 2.0; }
 
-        UINT16 fnum = (UINT16)juce::jlimit(0, 0x7FF, (int)fn);
+        auto fnum = static_cast<uint16_t>(juce::jlimit(0, 0x7FF, static_cast<int>(fn)));
 
-        /* Write F-number high byte (latch) then low byte (triggers update) */
-        wr(0xA4, (UINT8)(((block & 7) << 3) | ((fnum >> 8) & 0x07)));
-        wr(0xA0, (UINT8)(fnum & 0xFF));
+        // Write high byte (latch) then low byte (applies update)
+        wr0(0xA4, static_cast<uint8_t>(((block & 7) << 3) | ((fnum >> 8) & 0x07)));
+        wr0(0xA0, static_cast<uint8_t>(fnum & 0xFF));
     }
 
-    /* ── Key on / off ─────────────────────────────────────────────────── */
+    // ── Key on/off ────────────────────────────────────────────────────────────
+    // Register 0x28:  bits[7:4] = operator mask (0xF = all four on)
+    //                 bits[2:0] = channel index (0-2 part0, 4-6 part1)
     void keyOn()
     {
-        /* reg 0x28: bits[7:4]=OP mask (0xF=all on), bits[2:0]=channel      */
-        wr(0x28, (UINT8)(0xF0 | FM_CH_IDX));
+        wr0(0x28, 0xF0 | 0x00);   // all OPs on, channel 0
     }
-
     void keyOff()
     {
-        if (chip) wr(0x28, (UINT8)(0x00 | FM_CH_IDX));
+        wr0(0x28, 0x00 | 0x00);   // all OPs off, channel 0
     }
 };

@@ -5,9 +5,9 @@
 #include "Ym2612Voice.h"
 #include "SynthSound.h"
 
-static constexpr int NUM_VOICES = 6;   // match YM2612's 6 FM channels
+static constexpr int NUM_VOICES = 6;
 
-// Parameter IDs
+// Parameter IDs – match what the editor binds to
 static const juce::String OP_LEVEL_ID[4] = {
     "op1Level", "op2Level", "op3Level", "op4Level"
 };
@@ -53,10 +53,9 @@ private:
 
     juce::Synthesiser       synth;
     juce::MidiKeyboardState midiKeyboardState;
-
     std::array<Ym2612Voice*, NUM_VOICES> voices {};
 
-    void updateVoiceParams();
+    void pushParamsToVoices();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SquareWaveSynthAudioProcessor)
 };
