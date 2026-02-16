@@ -16,7 +16,7 @@ static constexpr int NUM_VOICES = 6;
 // SL  : sustain level      0-15
 // RR  : release rate       0-15
 // MUL : frequency multiply 0-15
-// DT  : detune             0-7   (4-7 = negative detune on the chip)
+// DT  : detune             -3 to +3 (UI-friendly; chip uses 0-7 internally)
 static const juce::String OP_TL_ID[4]  = { "op1_TL",  "op2_TL",  "op3_TL",  "op4_TL"  };
 static const juce::String OP_AR_ID[4]  = { "op1_AR",  "op2_AR",  "op3_AR",  "op4_AR"  };
 static const juce::String OP_DR_ID[4]  = { "op1_DR",  "op2_DR",  "op3_DR",  "op4_DR"  };

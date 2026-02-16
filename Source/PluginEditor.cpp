@@ -3,18 +3,18 @@
 using namespace YmColors;
 
 // ── Operator metadata ─────────────────────────────────────────────────────────
-// Algo 4: OP1→OP2 (pair A), OP3→OP4 (pair B).  OP2 and OP4 are carriers.
 static const char* OP_NAME[4] = { "OP 1", "OP 2", "OP 3", "OP 4" };
 static const char* OP_ROLE[4] = { "Modulator", "Carrier", "Modulator", "Carrier" };
 static const bool  OP_CARRIER[4] = { false, true, false, true };
 
-// Parameter ID table indexed [op][sliderIndex]
+// Parameter IDs indexed [sliderIndex][op]
 static const juce::String* PARAM_IDS[8] = {
     OP_TL_ID, OP_AR_ID, OP_DR_ID, OP_SR_ID,
     OP_SL_ID, OP_RR_ID, OP_MUL_ID, OP_DT_ID
 };
-// Max value for each slider
-static const int PARAM_MAX[8] = { 127, 31, 31, 31, 15, 15, 15, 7 };
+// Min/max for each slider type
+static const int PARAM_MIN[8] = {   0,  0,  0,  0,  0,  0,  0, -3 };
+static const int PARAM_MAX[8] = { 127, 31, 31, 31, 15, 15, 15,  3 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 SquareWaveSynthAudioProcessorEditor::SquareWaveSynthAudioProcessorEditor(
@@ -40,7 +40,15 @@ SquareWaveSynthAudioProcessorEditor::SquareWaveSynthAudioProcessorEditor(
                            accent.withAlpha(0.3f));
     addAndMakeVisible(midiKeyboard);
 
-    // Total height: title + header + env + 8 slider rows + keyboard + margins
+    // Set explicit tab order: within each operator column, go top to bottom
+    // OP1 sliders → OP2 sliders → OP3 sliders → OP4 sliders
+    for (int op = 0; op < 4; op++) {
+        for (int s = 0; s < NUM_SLIDERS; s++) {
+            int explicitIndex = op * NUM_SLIDERS + s;
+            ops[op].rows[s].slider.setExplicitFocusOrder(explicitIndex + 1);
+        }
+    }
+
     const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kPad * 2;
     const int totalH  = kTitleH + kMargin + opAreaH + kMargin + kKeyboardH;
     setSize(680, totalH);
@@ -75,7 +83,7 @@ void SquareWaveSynthAudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
     col.roleLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(col.roleLabel);
 
-    // Envelope display – hook up the 5 EG params
+    // Envelope display
     col.envDisplay.setParams(
         dynamic_cast<juce::RangedAudioParameter*>(
             audioProcessor.apvts.getParameter(OP_AR_ID[opIdx])),
@@ -92,17 +100,19 @@ void SquareWaveSynthAudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
 
     // 8 sliders
     for (int s = 0; s < NUM_SLIDERS; s++) {
-        setupSlider(col.rows[s], PARAM_IDS[s][opIdx], PARAM_MAX[s], colAccent);
+        setupSlider(col.rows[s], PARAM_IDS[s][opIdx],
+                    PARAM_MIN[s], PARAM_MAX[s], colAccent);
     }
 }
 
 void SquareWaveSynthAudioProcessorEditor::setupSlider(
-    SliderRow& row, const juce::String& paramId, int maxVal, juce::Colour colour)
+    SliderRow& row, const juce::String& paramId,
+    int minVal, int maxVal, juce::Colour colour)
 {
     auto& sl = row.slider;
     sl.setSliderStyle(juce::Slider::LinearHorizontal);
     sl.setTextBoxStyle(juce::Slider::TextBoxRight, false, 34, 18);
-    sl.setRange(0.0, static_cast<double>(maxVal), 1.0);
+    sl.setRange(static_cast<double>(minVal), static_cast<double>(maxVal), 1.0);
     sl.setColour(juce::Slider::trackColourId,       colour.withAlpha(0.55f));
     sl.setColour(juce::Slider::thumbColourId,        colour);
     sl.setColour(juce::Slider::backgroundColourId,   panel.brighter(0.08f));
@@ -111,8 +121,7 @@ void SquareWaveSynthAudioProcessorEditor::setupSlider(
     sl.setColour(juce::Slider::textBoxBackgroundColourId, panel);
     addAndMakeVisible(sl);
 
-    // Row label (left of slider)
-    // Label text is set in resized() since it doesn't affect layout
+    // Label
     row.label.setFont(juce::Font(10.5f));
     row.label.setColour(juce::Label::textColourId, dim);
     row.label.setJustificationType(juce::Justification::centredRight);
@@ -160,7 +169,7 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
                    x, static_cast<float>(opAreaY + opAreaH - 6), 1.0f);
     }
 
-    // Slider row label backgrounds (alternating to aid readability)
+    // Alternating row backgrounds
     for (int s = 0; s < NUM_SLIDERS; s++) {
         if (s % 2 == 0) {
             int rowY = opAreaY + kHeaderH + kEnvH + kPad + s * kSliderH;
@@ -170,7 +179,7 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
         }
     }
 
-    // Algo flow hint at bottom of op panel
+    // Algo flow hint
     g.setColour(dim.withAlpha(0.5f));
     g.setFont(juce::Font(9.0f));
     int hintY = opAreaY + opAreaH - 13;

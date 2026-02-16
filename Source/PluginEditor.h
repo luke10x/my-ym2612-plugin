@@ -6,36 +6,37 @@
 #include "PluginProcessor.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared colour palette (used by editor + envelope display)
-// ─────────────────────────────────────────────────────────────────────────────
 namespace YmColors {
     static const juce::Colour bg     { 0xFF0D0D1A };
     static const juce::Colour panel  { 0xFF161625 };
     static const juce::Colour border { 0xFF252540 };
-    static const juce::Colour accent { 0xFF00D4AA };   // teal carrier
-    static const juce::Colour mod    { 0xFF5599FF };   // blue modulator
+    static const juce::Colour accent { 0xFF00D4AA };
+    static const juce::Colour mod    { 0xFF5599FF };
     static const juce::Colour text   { 0xFFDDEEFF };
     static const juce::Colour dim    { 0xFF556070 };
-    static const juce::Colour envLine{ 0xFF00FFB0 };   // bright envelope trace
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EnvelopeDisplay
 //
-// Draws a classic 5-segment FM ADSR shape:
-//   [0→peak] Attack ramp  (speed = AR 0-31, fast = steep)
-//   [peak→SL] Decay fall  (speed = DR)
-//   [SL hold] Sustain     (level = SL 0-15, held while key down)
-//   [SL→0]  Sus.Rate fade (speed = SR, can be 0 = hold forever)
-//   [→0]    Release       (speed = RR, after key off)
+// User-friendly visual envelope (not chip-accurate, optimized for readability):
 //
-// All parameters drive the visual shape directly – not accurate chip timing,
-// but perceptually proportional so tweaking feels intuitive.
+//   1. Attack:  ramp up (faster AR = steeper)
+//   2. Decay:   fall to sustain level (faster DR = steeper)
+//   3. Sustain: horizontal line at SL
+//      → LENGTH of this line reflects "Sustain Decay" (SR parameter)
+//      → LONGER line = note rings longer (low SR value)
+//      → SHORTER line = note fades faster (high SR value)
+//   4. Release: diagonal fall from end of sustain line to bottom
+//      → LONGER diagonal = rings longer after key release (low RR)
+//      → SHORTER diagonal = quick cutoff (high RR)
+//
+// This makes it intuitive: move SR right → sustain line gets shorter (fades faster)
+//                          move RR right → release diagonal gets shorter (quick release)
 // ─────────────────────────────────────────────────────────────────────────────
 class EnvelopeDisplay : public juce::Component
 {
 public:
-    // Pointers to the live parameter values – updated each repaint via timer
     void setParams(juce::RangedAudioParameter* ar,
                    juce::RangedAudioParameter* dr,
                    juce::RangedAudioParameter* sl,
@@ -55,7 +56,6 @@ public:
         float x0 = bounds.getX();
         float y0 = bounds.getY();
 
-        // Background
         g.setColour(YmColors::panel.darker(0.3f));
         g.fillRoundedRectangle(bounds, 4.0f);
         g.setColour(YmColors::border);
@@ -63,54 +63,57 @@ public:
 
         if (!pAR) return;
 
-        // Read normalised values
-        float ar = pAR->getValue();   // 0-1, 1=fastest
-        float dr = pDR->getValue();
-        float sl = 1.0f - pSL->getValue();  // SL=0→top, SL=15→bottom; invert for display
-        float sr = pSR->getValue();
-        float rr = pRR->getValue();
+        // Read normalized values (0..1)
+        float ar = pAR->getValue();   // 1 = fast attack
+        float dr = pDR->getValue();   // 1 = fast decay
+        float sl = 1.0f - pSL->getValue();  // flip so high SL = high on display
+        float sr = pSR->getValue();   // sustain decay rate: 1 = fast decay (short line)
+        float rr = pRR->getValue();   // release rate: 1 = fast release (short diagonal)
 
-        // Convert rates to horizontal widths (faster = narrower)
-        // We divide the total width into 5 segments
-        // Minimum width so even rate=0 shows something
-        auto rateToW = [](float rate, float maxW) -> float {
-            // rate 0→1: 1 = instant (very narrow), 0 = very slow (wide)
-            return maxW * (1.0f - rate * 0.85f) + maxW * 0.05f;
+        float yTop = y0 + 4.0f;
+        float yBot = y0 + h - 4.0f;
+        float ySL  = yTop + (yBot - yTop) * (1.0f - sl);
+
+        // Width allocation (simplified for readability):
+        // Attack takes proportional space (faster = narrower)
+        // Decay takes proportional space
+        // Sustain line length INVERSELY proportional to SR (high SR = short line)
+        // Release diagonal length INVERSELY proportional to RR (high RR = short)
+
+        auto rateToWidth = [](float rate, float baseWidth) -> float {
+            // rate 0→1: slow→fast
+            // return: slow = wide, fast = narrow
+            return baseWidth * (1.0f - rate * 0.7f);
         };
-        float totalW    = w;
-        float wAtk      = rateToW(ar, totalW * 0.18f);
-        float wDec      = rateToW(dr, totalW * 0.20f);
-        float wSus      = totalW * 0.28f;                    // fixed sustain hold width
-        float wSusRate  = sr > 0.01f ? rateToW(sr, totalW * 0.18f) : totalW * 0.18f;
-        float wRel      = rateToW(rr, totalW * 0.16f);
-        // normalise to fit exactly
-        float total = wAtk + wDec + wSus + wSusRate + wRel;
-        float scale = totalW / total;
-        wAtk *= scale; wDec *= scale; wSus *= scale; wSusRate *= scale; wRel *= scale;
 
-        // Y positions (0 = top = loud, h = bottom = silent)
-        float yTop  = y0 + 4.0f;
-        float yBot  = y0 + h - 4.0f;
-        float ySL   = yTop + (yBot - yTop) * (1.0f - sl);   // sustain level
+        float wAtk = rateToWidth(ar, w * 0.15f);
+        float wDec = rateToWidth(dr, w * 0.15f);
+        // Sustain line: longer when SR is low (slow decay = rings longer)
+        float wSus = w * 0.35f * (1.0f - sr * 0.8f);  // low SR = long line
+        // Release: longer when RR is low (slow release = rings longer)
+        float wRel = w * 0.25f * (1.0f - rr * 0.7f);  // low RR = long diagonal
+
+        // Normalize to fit total width
+        float totalUsed = wAtk + wDec + wSus + wRel;
+        if (totalUsed > 0.0f) {
+            float scale = w / totalUsed;
+            wAtk *= scale; wDec *= scale; wSus *= scale; wRel *= scale;
+        }
 
         // Build path
         juce::Path p;
         float cx = x0;
-        p.startNewSubPath(cx, yBot);                          // start at silence
-        cx += wAtk;  p.lineTo(cx, yTop);                     // attack to peak
-        cx += wDec;  p.lineTo(cx, ySL);                      // decay to SL
+        p.startNewSubPath(cx, yBot);      // start at silence
+        cx += wAtk;
+        p.lineTo(cx, yTop);               // attack to peak
+        cx += wDec;
+        p.lineTo(cx, ySL);                // decay to sustain level
         float susEnd = cx + wSus;
-        p.lineTo(susEnd, ySL);                                // sustain hold
+        p.lineTo(susEnd, ySL);            // sustain hold (horizontal line)
         cx = susEnd;
-        float srEnd = cx + wSusRate;
-        if (sr > 0.01f)
-            p.lineTo(srEnd, yBot);                            // sustain rate fade
-        else
-            p.lineTo(srEnd, ySL);                             // hold at SL if SR=0
-        cx = srEnd;
-        p.lineTo(cx + wRel, yBot);                            // release to silence
+        p.lineTo(cx + wRel, yBot);        // release diagonal to silence
 
-        // Fill under curve
+        // Fill
         juce::Path fill = p;
         fill.lineTo(cx + wRel, yBot);
         fill.lineTo(x0, yBot);
@@ -119,7 +122,7 @@ public:
         g.setColour(lineCol.withAlpha(0.18f));
         g.fillPath(fill);
 
-        // Stroke the curve
+        // Stroke
         g.setColour(lineCol.withAlpha(0.9f));
         g.strokePath(p, juce::PathStrokeType(1.8f,
             juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
@@ -132,7 +135,7 @@ public:
             xd += dashLen + gapLen;
         }
 
-        // Label "EG" top-left
+        // Label
         g.setColour(YmColors::dim);
         g.setFont(juce::Font(8.5f));
         g.drawText("EG", bounds.translated(4, 2), juce::Justification::topLeft, false);
@@ -144,25 +147,6 @@ private:
     bool m_isCarrier = false;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SquareWaveSynthAudioProcessorEditor
-//
-// Layout (one column per operator, side by side):
-//
-//  ┌─ Title ──────────────────────────────────────────────────────────────────┐
-//  ├─ [OP1 col]──[OP2 col]──[OP3 col]──[OP4 col] ─────────────────────────── ┤
-//  │   name+role  name+role  name+role  name+role                             │
-//  │   [EnvDisp]  [EnvDisp]  [EnvDisp]  [EnvDisp]                            │
-//  │   Level────  Level────  Level────  Level────                             │
-//  │   Attack───  Attack───  Attack───  Attack───                             │
-//  │   Decay────  Decay────  Decay────  Decay────                             │
-//  │   Sus.Rate─  Sus.Rate─  Sus.Rate─  Sus.Rate─                            │
-//  │   Sus.Lvl──  Sus.Lvl──  Sus.Lvl──  Sus.Lvl──                            │
-//  │   Release──  Release──  Release──  Release──                             │
-//  │   Multi────  Multi────  Multi────  Multi────                             │
-//  │   Detune───  Detune───  Detune───  Detune───                             │
-//  ├─ MIDI Keyboard ──────────────────────────────────────────────────────────┤
-//  └──────────────────────────────────────────────────────────────────────────┘
 // ─────────────────────────────────────────────────────────────────────────────
 class SquareWaveSynthAudioProcessorEditor
     : public juce::AudioProcessorEditor,
@@ -178,14 +162,13 @@ public:
 private:
     SquareWaveSynthAudioProcessor& audioProcessor;
 
-    // ── Per-operator column ───────────────────────────────────────────────────
     struct SliderRow {
         juce::Slider slider;
         juce::Label  label;
         std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> att;
     };
 
-    static constexpr int NUM_SLIDERS = 8;  // TL, AR, DR, SR, SL, RR, MUL, DT
+    static constexpr int NUM_SLIDERS = 8;
     static constexpr const char* SLIDER_LABELS[NUM_SLIDERS] = {
         "Level", "Attack", "Decay", "Sus.Rate", "Sus.Lvl", "Release", "Multi", "Detune"
     };
@@ -198,10 +181,8 @@ private:
     };
     OpColumn ops[4];
 
-    // ── MIDI keyboard ─────────────────────────────────────────────────────────
     juce::MidiKeyboardComponent midiKeyboard;
 
-    // ── Timer: repaint envelope displays ─────────────────────────────────────
     void timerCallback() override
     {
         for (auto& op : ops)
@@ -210,13 +191,13 @@ private:
     }
 
     void setupSlider(SliderRow& row, const juce::String& paramId,
-                     int maxVal, juce::Colour colour);
+                     int minVal, int maxVal, juce::Colour colour);
     void styleColumn(OpColumn& col, int opIdx);
 
     static constexpr int kTitleH    = 46;
-    static constexpr int kHeaderH   = 36;   // name + role labels
-    static constexpr int kEnvH      = 60;   // envelope display height
-    static constexpr int kSliderH   = 44;   // height per slider row
+    static constexpr int kHeaderH   = 36;
+    static constexpr int kEnvH      = 60;
+    static constexpr int kSliderH   = 44;
     static constexpr int kKeyboardH = 80;
     static constexpr int kMargin    = 8;
     static constexpr int kPad       = 6;
