@@ -1,0 +1,72 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "intelliSenseMode": "macos-clang-arm64",
+            "cppStandard": "c++17",
+            "cStandard": "c17",
+            "compilerPath": "/usr/bin/clang++",
+            "includePath": [
+                "${workspaceFolder}/Source",
+                // ymfm – fetched by CMake FetchContent into build/_deps/ymfm-src/src
+                "${workspaceFolder}/build/_deps/ymfm-src/src",
+                // JUCE modules – FetchContent puts them here
+                "${workspaceFolder}/build/_deps/juce-src/modules",
+                // JUCE-generated headers (JuceHeader.h, AppConfig.h, etc.)
+                "${workspaceFolder}/build/SquareWaveSynth_artefacts/JuceLibraryCode"
+                // If you use a local JUCE via -DJUCE_SOURCE_DIR=...
+                // "${env:JUCE_SOURCE_DIR}/modules"
+            ],
+            "defines": [
+                "JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1",
+                "JUCE_STANDALONE_APPLICATION=0",
+                "JUCE_PLUGINHOST_VST3=0",
+                "JUCE_WEB_BROWSER=0",
+                "JUCE_USE_CURL=0"
+            ]
+        },
+        {
+            "name": "Linux",
+            "intelliSenseMode": "linux-gcc-x64",
+            "cppStandard": "c++17",
+            "cStandard": "c17",
+            "compilerPath": "/usr/bin/g++",
+            "includePath": [
+                "${workspaceFolder}/Source",
+                "${workspaceFolder}/build/_deps/ymfm-src/src",
+                "${workspaceFolder}/build/_deps/juce-src/modules",
+                "${workspaceFolder}/build/SquareWaveSynth_artefacts/JuceLibraryCode",
+                "${env:JUCE_SOURCE_DIR}/modules"
+            ],
+            "defines": [
+                "JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1",
+                "JUCE_STANDALONE_APPLICATION=0",
+                "JUCE_WEB_BROWSER=0",
+                "JUCE_USE_CURL=0",
+                "LINUX=1"
+            ]
+        },
+        {
+            "name": "Win32",
+            "intelliSenseMode": "windows-msvc-x64",
+            "cppStandard": "c++17",
+            "cStandard": "c17",
+            "includePath": [
+                "${workspaceFolder}/Source",
+                "${workspaceFolder}/build/_deps/ymfm-src/src",
+                "${workspaceFolder}/build/_deps/juce-src/modules",
+                "${workspaceFolder}/build/SquareWaveSynth_artefacts/JuceLibraryCode",
+                "${env:JUCE_SOURCE_DIR}/modules"
+            ],
+            "defines": [
+                "JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1",
+                "JUCE_STANDALONE_APPLICATION=0",
+                "JUCE_WEB_BROWSER=0",
+                "JUCE_USE_CURL=0",
+                "WIN32=1",
+                "_WINDOWS=1"
+            ]
+        }
+    ],
+    "version": 4
+}

@@ -14,7 +14,7 @@ SquareWaveSynthAudioProcessorEditor::SquareWaveSynthAudioProcessorEditor(
         auto& op = ops[i];
 
         // Slider
-        op.slider.setSliderStyle(juce::Slider::RotaryVerticalDrag);
+        op.slider.setSliderStyle(juce::Slider::LinearHorizontal);
         op.slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 56, 18);
         op.slider.setRange(0, 127, 1);
         // Carrier gets a bright accent; modulators a dimmer teal
@@ -98,7 +98,7 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
     // Title text
     g.setColour(accent);
     g.setFont(juce::Font(20.0f, juce::Font::bold));
-    g.drawText("YM2612 Synth v2", titleR, juce::Justification::centred, false);
+    g.drawText("YM2612 Synth", titleR, juce::Justification::centred, false);
 
     // Subtitle
     g.setColour(dim);

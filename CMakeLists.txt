@@ -61,8 +61,9 @@ elseif(MSVC)
 endif()
 
 # ─── Plugin target ───────────────────────────────────────────────────────────
+# Standalone wraps the exact same AudioProcessor + Editor in a JUCE window with
+# its own audio/MIDI device selector – identical UI to the plugin in a DAW.
 set(PLUGIN_FORMATS Standalone VST3)
-
 if(APPLE)
     list(APPEND PLUGIN_FORMATS AU)
 endif()
@@ -97,7 +98,6 @@ target_sources(SquareWaveSynth
         Source/PluginEditor.h
         Source/Ym2612Voice.h
         Source/SynthSound.h
-        Source/MidiKeyboardComponent.h
 )
 
 # ─── Compile definitions ──────────────────────────────────────────────────────
