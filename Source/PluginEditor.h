@@ -30,9 +30,10 @@ namespace YmColors {
 //   4. Release: diagonal fall from end of sustain line to bottom
 //      → LONGER diagonal = rings longer after key release (low RR)
 //      → SHORTER diagonal = quick cutoff (high RR)
+//      → Does NOT stretch to fill width — just draws to the floor
 //
-// This makes it intuitive: move SR right → sustain line gets shorter (fades faster)
-//                          move RR right → release diagonal gets shorter (quick release)
+// Attack/Decay/Sustain are allocated fixed proportional space.
+// Release is drawn independently and may not reach the right edge.
 // ─────────────────────────────────────────────────────────────────────────────
 class EnvelopeDisplay : public juce::Component
 {
@@ -74,11 +75,9 @@ public:
         float yBot = y0 + h - 4.0f;
         float ySL  = yTop + (yBot - yTop) * (1.0f - sl);
 
-        // Width allocation (simplified for readability):
-        // Attack takes proportional space (faster = narrower)
-        // Decay takes proportional space
-        // Sustain line length INVERSELY proportional to SR (high SR = short line)
-        // Release diagonal length INVERSELY proportional to RR (high RR = short)
+        // Width allocation:
+        // Attack/Decay/Sustain take fixed proportions (do NOT stretch to fill)
+        // Release is drawn independently afterward and may not reach right edge
 
         auto rateToWidth = [](float rate, float baseWidth) -> float {
             // rate 0→1: slow→fast
@@ -86,19 +85,14 @@ public:
             return baseWidth * (1.0f - rate * 0.7f);
         };
 
-        float wAtk = rateToWidth(ar, w * 0.15f);
-        float wDec = rateToWidth(dr, w * 0.15f);
+        float wAtk = rateToWidth(ar, w * 0.18f);
+        float wDec = rateToWidth(dr, w * 0.18f);
         // Sustain line: longer when SR is low (slow decay = rings longer)
-        float wSus = w * 0.35f * (1.0f - sr * 0.8f);  // low SR = long line
-        // Release: longer when RR is low (slow release = rings longer)
-        float wRel = w * 0.25f * (1.0f - rr * 0.7f);  // low RR = long diagonal
+        float wSus = w * 0.40f * (1.0f - sr * 0.8f);  // low SR = long line
 
-        // Normalize to fit total width
-        float totalUsed = wAtk + wDec + wSus + wRel;
-        if (totalUsed > 0.0f) {
-            float scale = w / totalUsed;
-            wAtk *= scale; wDec *= scale; wSus *= scale; wRel *= scale;
-        }
+        // Release width: independent, not part of normalization
+        // Longer when RR is low (slow release)
+        float wRel = w * 0.30f * (1.0f - rr * 0.75f);
 
         // Build path
         juce::Path p;
@@ -108,9 +102,9 @@ public:
         p.lineTo(cx, yTop);               // attack to peak
         cx += wDec;
         p.lineTo(cx, ySL);                // decay to sustain level
-        float susEnd = cx + wSus;
-        p.lineTo(susEnd, ySL);            // sustain hold (horizontal line)
-        cx = susEnd;
+        cx += wSus;
+        p.lineTo(cx, ySL);                // sustain hold (horizontal line)
+        // Release from end of sustain
         p.lineTo(cx + wRel, yBot);        // release diagonal to silence
 
         // Fill
