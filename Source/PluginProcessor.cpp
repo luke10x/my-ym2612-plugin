@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "FurnaceFormat.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Parameter layout
@@ -199,4 +200,128 @@ void SquareWaveSynthAudioProcessor::setStateInformation(const void* data, int si
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new SquareWaveSynthAudioProcessor();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Furnace .fui Import/Export
+//
+//  Furnace stores DT in chip format (0-7: 0-3 pos, 4-7 neg).
+//  We display DT as UI format (-3 to +3).
+//  Conversion:  chip→UI:  dt<4 → dt,  dt>=4 → -(dt-4)  (except 4→0 clash: 4→0neg)
+//               Actually Furnace: 0=no detune, 1-3=pos, 4=no(neg), 5-7=neg
+//               Our push: uiDT<0 → chip=4-uiDT,  uiDT>=0 → chip=uiDT
+//
+//  Furnace ssgEnv: value 0-7 with bit3 set means "enabled" (i.e. values 8-15).
+//  But Furnace source also uses 8 to mean "disabled" in some contexts.
+//  The actual encoding in the FM feature block is:
+//    bit3 (0x08) = SSG-EG enable
+//    bits2:0     = mode 0-7
+//  So: disabled = 0x00,  enabled mode N = 0x08 | N
+// ─────────────────────────────────────────────────────────────────────────────
+
+bool SquareWaveSynthAudioProcessor::importFurnaceInstrument(const juce::File& file)
+{
+    FurnaceFormat::Instrument ins;
+    if (!FurnaceFormat::readFui(file, ins))
+        return false;
+
+    // set() uses convertTo0to1 which is correct for ALL JUCE parameter types:
+    //   AudioParameterInt(min,max):  (rawVal - min) / (max - min)
+    //   AudioParameterChoice(n):     idx / (n - 1)
+    //   AudioParameterBool:          identity (pass 0.0 or 1.0 directly)
+    auto set = [&](const juce::String& id, float rawValue) {
+        auto* p = apvts.getParameter(id);
+        if (p == nullptr) {
+            DBG("importFurnace: PARAMETER NOT FOUND: " + id);
+            return;
+        }
+        float norm = p->convertTo0to1(rawValue);
+        p->setValueNotifyingHost(norm);
+        DBG("importFurnace: set " + id + " raw=" + juce::String(rawValue)
+            + " norm=" + juce::String(norm)
+            + " readback=" + juce::String(apvts.getRawParameterValue(id)->load()));
+    };
+
+    // Global
+    set(GLOBAL_ALGORITHM, (float)(ins.alg & 7));
+    set(GLOBAL_FEEDBACK,  (float)(ins.fb  & 7));
+    set(GLOBAL_AMS,       (float)(ins.ams & 3));
+    set(GLOBAL_FMS,       (float)(ins.fms & 7));
+
+    // Per-operator
+    for (int op = 0; op < 4; op++) {
+        const auto& fop = ins.op[op];
+
+        set(OP_TL_ID[op],  (float)(127 - (int)fop.tl));
+        set(OP_AR_ID[op],  (float)fop.ar);
+        set(OP_DR_ID[op],  (float)fop.dr);
+        set(OP_SR_ID[op],  (float)fop.d2r);
+        set(OP_SL_ID[op],  (float)fop.sl);
+        set(OP_RR_ID[op],  (float)fop.rr);
+        set(OP_MUL_ID[op], (float)fop.mult);
+        set(OP_RS_ID[op],  (float)fop.rs);
+
+        int chipDT = (int)fop.dt & 7;
+        int uiDT   = (chipDT == 0 || chipDT == 4) ? 0
+                   : (chipDT <= 3)                 ? chipDT
+                   :                                 -(chipDT - 4);
+        set(OP_DT_ID[op], (float)uiDT);
+
+        set(OP_AM_ID[op],     fop.am != 0          ? 1.0f : 0.0f);
+        set(OP_SSG_EN_ID[op], (fop.ssgEnv & 0x08)  ? 1.0f : 0.0f);
+        set(OP_SSG_MODE_ID[op], (float)(fop.ssgEnv & 0x07));
+    }
+
+    pushParamsToVoices();
+    DBG("importFurnace: done, pushParamsToVoices called");
+    return true;
+}
+
+bool SquareWaveSynthAudioProcessor::exportFurnaceInstrument(const juce::File& file, const juce::String& name)
+{
+    FurnaceFormat::Instrument ins;
+    ins.name       = name.isEmpty() ? "YM2612 Patch" : name;
+    ins.alg        = static_cast<uint8_t>(apvts.getRawParameterValue(GLOBAL_ALGORITHM)->load());
+    ins.fb         = static_cast<uint8_t>(apvts.getRawParameterValue(GLOBAL_FEEDBACK)->load());
+    ins.ams        = static_cast<uint8_t>(apvts.getRawParameterValue(GLOBAL_AMS)->load());
+    ins.fms        = static_cast<uint8_t>(apvts.getRawParameterValue(GLOBAL_FMS)->load());
+    ins.fms2       = 0;
+    ins.ams2       = 0;
+    ins.ops        = 4;
+    ins.opllPreset = 0;
+
+    for (int op = 0; op < 4; op++) {
+        auto& fop = ins.op[op];
+
+        // TL: UI 0=silent→Furnace 127,  UI 127=loud→Furnace 0
+        int uiLevel = static_cast<int>(apvts.getRawParameterValue(OP_TL_ID[op])->load());
+        fop.tl   = static_cast<uint8_t>(127 - uiLevel);
+
+        fop.ar   = static_cast<uint8_t>(apvts.getRawParameterValue(OP_AR_ID[op])->load());
+        fop.dr   = static_cast<uint8_t>(apvts.getRawParameterValue(OP_DR_ID[op])->load());
+        fop.d2r  = static_cast<uint8_t>(apvts.getRawParameterValue(OP_SR_ID[op])->load());
+        fop.sl   = static_cast<uint8_t>(apvts.getRawParameterValue(OP_SL_ID[op])->load());
+        fop.rr   = static_cast<uint8_t>(apvts.getRawParameterValue(OP_RR_ID[op])->load());
+        fop.mult = static_cast<uint8_t>(apvts.getRawParameterValue(OP_MUL_ID[op])->load());
+        fop.rs   = static_cast<uint8_t>(apvts.getRawParameterValue(OP_RS_ID[op])->load());
+        fop.dt2  = 0;
+        fop.dam  = 0; fop.dvb = 0; fop.egt = 0;
+        fop.ksl  = 0; fop.sus = 0; fop.vib = 0;
+        fop.ws   = 0; fop.ksr = 0; fop.kvs = 2;
+
+        // DT UI→chip: uiDT<0 → 4-uiDT,  uiDT>=0 → uiDT
+        int uiDT = static_cast<int>(apvts.getRawParameterValue(OP_DT_ID[op])->load());
+        fop.dt = static_cast<uint8_t>((uiDT < 0) ? (4 - uiDT) : uiDT);
+
+        fop.am = apvts.getRawParameterValue(OP_AM_ID[op])->load() > 0.5f ? 1 : 0;
+
+        // ssgEnv: disabled=0x00, enabled mode N = 0x08|N
+        bool ssgEn   = apvts.getRawParameterValue(OP_SSG_EN_ID[op])->load() > 0.5f;
+        int  ssgMode = static_cast<int>(apvts.getRawParameterValue(OP_SSG_MODE_ID[op])->load());
+        fop.ssgEnv   = ssgEn ? static_cast<uint8_t>(0x08 | (ssgMode & 0x07)) : 0x00;
+    }
+
+    return FurnaceFormat::writeFui(file, ins);
 }

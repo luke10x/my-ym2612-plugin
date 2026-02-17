@@ -99,6 +99,10 @@ public:
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
+    // Furnace .fui file import/export
+    bool importFurnaceInstrument(const juce::File& file);
+    bool exportFurnaceInstrument(const juce::File& file, const juce::String& name);
+
     juce::AudioProcessorValueTreeState apvts;
     juce::MidiKeyboardState& getMidiKeyboardState() { return midiKeyboardState; }
 

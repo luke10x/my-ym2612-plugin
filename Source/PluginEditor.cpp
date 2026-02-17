@@ -147,6 +147,54 @@ void SquareWaveSynthAudioProcessorEditor::setupGlobalControls()
     globalOct.label.setColour(juce::Label::textColourId, dim);
     addAndMakeVisible(globalOct.label);
     addAndMakeVisible(octaveSlider);
+    
+    // Import/Export buttons
+    importBtn.setButtonText("Import .fui");
+    importBtn.onClick = [this]() {
+        auto chooser = std::make_shared<juce::FileChooser>(
+            "Import Furnace Instrument", juce::File(), "*.fui");
+        auto flags = juce::FileBrowserComponent::openMode | 
+                     juce::FileBrowserComponent::canSelectFiles;
+        chooser->launchAsync(flags, [this, chooser](const juce::FileChooser& fc) {
+            auto file = fc.getResult();
+            if (file.existsAsFile()) {
+                if (audioProcessor.importFurnaceInstrument(file))
+                    juce::AlertWindow::showMessageBoxAsync(
+                        juce::AlertWindow::InfoIcon, "Import Successful",
+                        "Loaded: " + file.getFileNameWithoutExtension());
+                else
+                    juce::AlertWindow::showMessageBoxAsync(
+                        juce::AlertWindow::WarningIcon, "Import Failed",
+                        "Could not load Furnace instrument file.");
+            }
+        });
+    };
+    addAndMakeVisible(importBtn);
+    
+    exportBtn.setButtonText("Export .fui");
+    exportBtn.onClick = [this]() {
+        auto chooser = std::make_shared<juce::FileChooser>(
+            "Export Furnace Instrument", juce::File(), "*.fui");
+        auto flags = juce::FileBrowserComponent::saveMode | 
+                     juce::FileBrowserComponent::canSelectFiles |
+                     juce::FileBrowserComponent::warnAboutOverwriting;
+        chooser->launchAsync(flags, [this, chooser](const juce::FileChooser& fc) {
+            auto file = fc.getResult();
+            if (file != juce::File()) {
+                if (!file.hasFileExtension(".fui"))
+                    file = file.withFileExtension(".fui");
+                if (audioProcessor.exportFurnaceInstrument(file, file.getFileNameWithoutExtension()))
+                    juce::AlertWindow::showMessageBoxAsync(
+                        juce::AlertWindow::InfoIcon, "Export Successful",
+                        "Saved: " + file.getFileName());
+                else
+                    juce::AlertWindow::showMessageBoxAsync(
+                        juce::AlertWindow::WarningIcon, "Export Failed",
+                        "Could not save Furnace instrument file.");
+            }
+        });
+    };
+    addAndMakeVisible(exportBtn);
 }
 
 void SquareWaveSynthAudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
@@ -319,6 +367,12 @@ void SquareWaveSynthAudioProcessorEditor::resized()
 
     globalOct.label.setBounds(gx, gy, gLabelW, 22);
     octaveSlider.setBounds(gx + gLabelW + 4, gy, gControlW - 30, 22);
+    
+    gx += gLabelW + gControlW + 20;
+    
+    // Import/Export buttons (right side of global panel)
+    importBtn.setBounds(getWidth() - 180, globalY + 8, 80, 26);
+    exportBtn.setBounds(getWidth() - 90, globalY + 8, 80, 26);
 
     // Operator columns
     const int opAreaY = kTitleH + kMargin + kGlobalH + kMargin;
