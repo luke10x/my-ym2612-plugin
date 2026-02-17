@@ -2,17 +2,13 @@
 
 using namespace YmColors;
 
-// ── Operator metadata ─────────────────────────────────────────────────────────
 static const char* OP_NAME[4] = { "OP 1", "OP 2", "OP 3", "OP 4" };
 static const char* OP_ROLE[4] = { "Modulator", "Carrier", "Modulator", "Carrier" };
 static const bool  OP_CARRIER[4] = { false, true, false, true };
 
-// Parameter IDs indexed [sliderIndex][op]
 static const juce::String* PARAM_IDS[8] = {
-    OP_TL_ID, OP_AR_ID, OP_DR_ID, OP_SR_ID,
-    OP_SL_ID, OP_RR_ID, OP_MUL_ID, OP_DT_ID
+    OP_TL_ID, OP_AR_ID, OP_DR_ID, OP_SR_ID, OP_SL_ID, OP_RR_ID, OP_MUL_ID, OP_DT_ID
 };
-// Min/max for each slider type
 static const int PARAM_MIN[8] = {   0,  0,  0,  0,  0,  0,  0, -3 };
 static const int PARAM_MAX[8] = { 127, 31, 31, 31, 15, 15, 15,  3 };
 
@@ -24,36 +20,33 @@ SquareWaveSynthAudioProcessorEditor::SquareWaveSynthAudioProcessorEditor(
       midiKeyboard(p.getMidiKeyboardState(),
                    juce::MidiKeyboardComponent::horizontalKeyboard)
 {
+    setupGlobalControls();
+
     for (int op = 0; op < 4; op++)
         styleColumn(ops[op], op);
 
-    // MIDI keyboard
     midiKeyboard.setAvailableRange(36, 96);
     midiKeyboard.setScrollButtonsVisible(false);
-    midiKeyboard.setColour(juce::MidiKeyboardComponent::whiteNoteColourId,
-                           juce::Colours::white);
-    midiKeyboard.setColour(juce::MidiKeyboardComponent::blackNoteColourId,
-                           juce::Colour(0xFF1A1A2E));
-    midiKeyboard.setColour(juce::MidiKeyboardComponent::keyDownOverlayColourId,
-                           accent.withAlpha(0.75f));
-    midiKeyboard.setColour(juce::MidiKeyboardComponent::mouseOverKeyOverlayColourId,
-                           accent.withAlpha(0.3f));
+    midiKeyboard.setColour(juce::MidiKeyboardComponent::whiteNoteColourId, juce::Colours::white);
+    midiKeyboard.setColour(juce::MidiKeyboardComponent::blackNoteColourId, juce::Colour(0xFF1A1A2E));
+    midiKeyboard.setColour(juce::MidiKeyboardComponent::keyDownOverlayColourId, accent.withAlpha(0.75f));
+    midiKeyboard.setColour(juce::MidiKeyboardComponent::mouseOverKeyOverlayColourId, accent.withAlpha(0.3f));
     addAndMakeVisible(midiKeyboard);
 
-    // Set explicit tab order: within each operator column, go top to bottom
-    // OP1 sliders → OP2 sliders → OP3 sliders → OP4 sliders
+    // Tab order: within each op column (sliders + RS + AM)
     for (int op = 0; op < 4; op++) {
-        for (int s = 0; s < NUM_SLIDERS; s++) {
-            int explicitIndex = op * NUM_SLIDERS + s;
-            ops[op].rows[s].slider.setExplicitFocusOrder(explicitIndex + 1);
-        }
+        int base = op * (NUM_SLIDERS + 2);
+        for (int s = 0; s < NUM_SLIDERS; s++)
+            ops[op].rows[s].slider.setExplicitFocusOrder(base + s + 1);
+        ops[op].rsRow.slider.setExplicitFocusOrder(base + NUM_SLIDERS + 1);
+        ops[op].amRow.toggle.setExplicitFocusOrder(base + NUM_SLIDERS + 2);
     }
 
-    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kPad * 2;
-    const int totalH  = kTitleH + kMargin + opAreaH + kMargin + kKeyboardH;
-    setSize(680, totalH);
+    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kPad * 2;
+    const int totalH  = kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin + kKeyboardH;
+    setSize(720, totalH);
     setResizable(true, true);
-    setResizeLimits(560, totalH, 1400, totalH + 80);
+    setResizeLimits(600, totalH, 1600, totalH + 100);
 
     startTimerHz(30);
 }
@@ -64,64 +57,147 @@ SquareWaveSynthAudioProcessorEditor::~SquareWaveSynthAudioProcessorEditor()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+void SquareWaveSynthAudioProcessorEditor::setupGlobalControls()
+{
+    // Algorithm
+    algorithmBox.addItemList(juce::StringArray(ALGORITHM_NAMES, 8), 1);
+    globalAlgo.control = &algorithmBox;
+    globalAlgo.cbAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        audioProcessor.apvts, GLOBAL_ALGORITHM, algorithmBox);
+    globalAlgo.label.setText("Algorithm", juce::dontSendNotification);
+    globalAlgo.label.setJustificationType(juce::Justification::centredRight);
+    globalAlgo.label.setFont(juce::Font(11.0f));
+    globalAlgo.label.setColour(juce::Label::textColourId, dim);
+    addAndMakeVisible(globalAlgo.label);
+    addAndMakeVisible(algorithmBox);
+
+    // Feedback
+    feedbackSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    feedbackSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 28, 18);
+    feedbackSlider.setRange(0, 7, 1);
+    globalFb.control = &feedbackSlider;
+    globalFb.slAtt = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.apvts, GLOBAL_FEEDBACK, feedbackSlider);
+    globalFb.label.setText("Feedback", juce::dontSendNotification);
+    globalFb.label.setJustificationType(juce::Justification::centredRight);
+    globalFb.label.setFont(juce::Font(11.0f));
+    globalFb.label.setColour(juce::Label::textColourId, dim);
+    addAndMakeVisible(globalFb.label);
+    addAndMakeVisible(feedbackSlider);
+
+    // LFO Enable
+    lfoEnableBtn.setButtonText("LFO");
+    globalLfoEn.control = &lfoEnableBtn;
+    globalLfoEn.btnAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.apvts, GLOBAL_LFO_ENABLE, lfoEnableBtn);
+    addAndMakeVisible(lfoEnableBtn);
+
+    // LFO Freq
+    lfoFreqBox.addItemList(juce::StringArray(LFO_FREQ_NAMES, 8), 1);
+    globalLfoFreq.control = &lfoFreqBox;
+    globalLfoFreq.cbAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        audioProcessor.apvts, GLOBAL_LFO_FREQ, lfoFreqBox);
+    globalLfoFreq.label.setText("LFO Freq", juce::dontSendNotification);
+    globalLfoFreq.label.setJustificationType(juce::Justification::centredRight);
+    globalLfoFreq.label.setFont(juce::Font(11.0f));
+    globalLfoFreq.label.setColour(juce::Label::textColourId, dim);
+    addAndMakeVisible(globalLfoFreq.label);
+    addAndMakeVisible(lfoFreqBox);
+
+    // AMS
+    amsSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    amsSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 28, 18);
+    amsSlider.setRange(0, 3, 1);
+    globalAms.control = &amsSlider;
+    globalAms.slAtt = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.apvts, GLOBAL_AMS, amsSlider);
+    globalAms.label.setText("AMS", juce::dontSendNotification);
+    globalAms.label.setJustificationType(juce::Justification::centredRight);
+    globalAms.label.setFont(juce::Font(11.0f));
+    globalAms.label.setColour(juce::Label::textColourId, dim);
+    addAndMakeVisible(globalAms.label);
+    addAndMakeVisible(amsSlider);
+
+    // FMS
+    fmsSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    fmsSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 28, 18);
+    fmsSlider.setRange(0, 7, 1);
+    globalFms.control = &fmsSlider;
+    globalFms.slAtt = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.apvts, GLOBAL_FMS, fmsSlider);
+    globalFms.label.setText("FMS", juce::dontSendNotification);
+    globalFms.label.setJustificationType(juce::Justification::centredRight);
+    globalFms.label.setFont(juce::Font(11.0f));
+    globalFms.label.setColour(juce::Label::textColourId, dim);
+    addAndMakeVisible(globalFms.label);
+    addAndMakeVisible(fmsSlider);
+
+    // Octave
+    octaveSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    octaveSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 28, 18);
+    octaveSlider.setRange(-2, 2, 1);
+    globalOct.control = &octaveSlider;
+    globalOct.slAtt = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.apvts, GLOBAL_OCTAVE, octaveSlider);
+    globalOct.label.setText("Octave", juce::dontSendNotification);
+    globalOct.label.setJustificationType(juce::Justification::centredRight);
+    globalOct.label.setFont(juce::Font(11.0f));
+    globalOct.label.setColour(juce::Label::textColourId, dim);
+    addAndMakeVisible(globalOct.label);
+    addAndMakeVisible(octaveSlider);
+}
+
 void SquareWaveSynthAudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
 {
     bool carrier = OP_CARRIER[opIdx];
     juce::Colour colAccent = carrier ? YmColors::accent : YmColors::mod;
 
-    // Name label
     col.nameLabel.setText(OP_NAME[opIdx], juce::dontSendNotification);
     col.nameLabel.setFont(juce::Font(14.0f, juce::Font::bold));
     col.nameLabel.setColour(juce::Label::textColourId, colAccent);
     col.nameLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(col.nameLabel);
 
-    // Role label
     col.roleLabel.setText(OP_ROLE[opIdx], juce::dontSendNotification);
     col.roleLabel.setFont(juce::Font(10.0f));
     col.roleLabel.setColour(juce::Label::textColourId, dim);
     col.roleLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(col.roleLabel);
 
-    // Envelope display
     col.envDisplay.setParams(
-        dynamic_cast<juce::RangedAudioParameter*>(
-            audioProcessor.apvts.getParameter(OP_AR_ID[opIdx])),
-        dynamic_cast<juce::RangedAudioParameter*>(
-            audioProcessor.apvts.getParameter(OP_DR_ID[opIdx])),
-        dynamic_cast<juce::RangedAudioParameter*>(
-            audioProcessor.apvts.getParameter(OP_SL_ID[opIdx])),
-        dynamic_cast<juce::RangedAudioParameter*>(
-            audioProcessor.apvts.getParameter(OP_SR_ID[opIdx])),
-        dynamic_cast<juce::RangedAudioParameter*>(
-            audioProcessor.apvts.getParameter(OP_RR_ID[opIdx])),
+        dynamic_cast<juce::RangedAudioParameter*>(audioProcessor.apvts.getParameter(OP_AR_ID[opIdx])),
+        dynamic_cast<juce::RangedAudioParameter*>(audioProcessor.apvts.getParameter(OP_DR_ID[opIdx])),
+        dynamic_cast<juce::RangedAudioParameter*>(audioProcessor.apvts.getParameter(OP_SL_ID[opIdx])),
+        dynamic_cast<juce::RangedAudioParameter*>(audioProcessor.apvts.getParameter(OP_SR_ID[opIdx])),
+        dynamic_cast<juce::RangedAudioParameter*>(audioProcessor.apvts.getParameter(OP_RR_ID[opIdx])),
         carrier);
     addAndMakeVisible(col.envDisplay);
 
-    // 8 sliders
-    for (int s = 0; s < NUM_SLIDERS; s++) {
-        setupSlider(col.rows[s], PARAM_IDS[s][opIdx],
-                    PARAM_MIN[s], PARAM_MAX[s], colAccent);
-    }
+    for (int s = 0; s < NUM_SLIDERS; s++)
+        setupSlider(col.rows[s], PARAM_IDS[s][opIdx], PARAM_MIN[s], PARAM_MAX[s], colAccent);
+
+    // Rate Scale
+    setupSlider(col.rsRow, OP_RS_ID[opIdx], 0, 3, colAccent);
+
+    // AM Enable
+    setupToggle(col.amRow, OP_AM_ID[opIdx], colAccent);
 }
 
-void SquareWaveSynthAudioProcessorEditor::setupSlider(
-    SliderRow& row, const juce::String& paramId,
-    int minVal, int maxVal, juce::Colour colour)
+void SquareWaveSynthAudioProcessorEditor::setupSlider(SliderRow& row, const juce::String& paramId,
+                                                       int minVal, int maxVal, juce::Colour colour)
 {
     auto& sl = row.slider;
     sl.setSliderStyle(juce::Slider::LinearHorizontal);
     sl.setTextBoxStyle(juce::Slider::TextBoxRight, false, 34, 18);
     sl.setRange(static_cast<double>(minVal), static_cast<double>(maxVal), 1.0);
-    sl.setColour(juce::Slider::trackColourId,       colour.withAlpha(0.55f));
-    sl.setColour(juce::Slider::thumbColourId,        colour);
-    sl.setColour(juce::Slider::backgroundColourId,   panel.brighter(0.08f));
-    sl.setColour(juce::Slider::textBoxTextColourId,  text);
+    sl.setColour(juce::Slider::trackColourId, colour.withAlpha(0.55f));
+    sl.setColour(juce::Slider::thumbColourId, colour);
+    sl.setColour(juce::Slider::backgroundColourId, panel.brighter(0.08f));
+    sl.setColour(juce::Slider::textBoxTextColourId, text);
     sl.setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
     sl.setColour(juce::Slider::textBoxBackgroundColourId, panel);
     addAndMakeVisible(sl);
 
-    // Label
     row.label.setFont(juce::Font(10.5f));
     row.label.setColour(juce::Label::textColourId, dim);
     row.label.setJustificationType(juce::Justification::centredRight);
@@ -131,8 +207,23 @@ void SquareWaveSynthAudioProcessorEditor::setupSlider(
         audioProcessor.apvts, paramId, sl);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Paint
+void SquareWaveSynthAudioProcessorEditor::setupToggle(ToggleRow& row, const juce::String& paramId,
+                                                       juce::Colour colour)
+{
+    row.toggle.setButtonText("");
+    row.toggle.setColour(juce::ToggleButton::tickColourId, colour);
+    row.toggle.setColour(juce::ToggleButton::tickDisabledColourId, dim);
+    addAndMakeVisible(row.toggle);
+
+    row.label.setFont(juce::Font(10.5f));
+    row.label.setColour(juce::Label::textColourId, dim);
+    row.label.setJustificationType(juce::Justification::centredRight);
+    addAndMakeVisible(row.label);
+
+    row.att = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.apvts, paramId, row.toggle);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
 {
@@ -140,27 +231,28 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
 
     // Title bar
     auto titleR = getLocalBounds().removeFromTop(kTitleH).toFloat();
-    g.setColour(panel);
-    g.fillRect(titleR);
+    g.setColour(panel); g.fillRect(titleR);
     g.setColour(accent);
     g.fillRect(0.0f, titleR.getBottom() - 2.0f, static_cast<float>(getWidth()), 2.0f);
-    g.setColour(accent);
     g.setFont(juce::Font(19.0f, juce::Font::bold));
-    g.drawText("YM2612 Synth", titleR.withTrimmedBottom(14.0f),
-               juce::Justification::centred, false);
-    g.setColour(dim);
-    g.setFont(juce::Font(10.0f));
-    g.drawText("FM Synthesis  \xc2\xb7  6 Voices  \xc2\xb7  Algorithm 4",
-               titleR.withTrimmedTop(26.0f), juce::Justification::centred, false);
+    g.drawText("YM2612 Synth", titleR.withTrimmedBottom(14.0f), juce::Justification::centred, false);
+    g.setColour(dim); g.setFont(juce::Font(10.0f));
+    g.drawText("FM Synthesis  \xc2\xb7  6 Voices", titleR.withTrimmedTop(26.0f), juce::Justification::centred, false);
+
+    // Global panel background
+    const int globalY = kTitleH + kMargin;
+    g.setColour(panel);
+    g.fillRoundedRectangle(kMargin * 0.5f, static_cast<float>(globalY),
+                           getWidth() - kMargin, static_cast<float>(kGlobalH), 6.0f);
 
     // Operator panel background
-    const int opAreaY = kTitleH + kMargin;
-    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kPad * 2;
+    const int opAreaY = kTitleH + kMargin + kGlobalH + kMargin;
+    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kPad * 2;
     g.setColour(panel);
     g.fillRoundedRectangle(kMargin * 0.5f, static_cast<float>(opAreaY),
                            getWidth() - kMargin, static_cast<float>(opAreaH), 6.0f);
 
-    // Vertical column dividers
+    // Column dividers
     const int colW = (getWidth() - kMargin) / 4;
     g.setColour(YmColors::border);
     for (int i = 1; i < 4; i++) {
@@ -174,57 +266,80 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
         if (s % 2 == 0) {
             int rowY = opAreaY + kHeaderH + kEnvH + kPad + s * kSliderH;
             g.setColour(juce::Colour(0x08FFFFFF));
-            g.fillRect(static_cast<int>(kMargin * 0.5f), rowY,
-                       getWidth() - kMargin, kSliderH);
+            g.fillRect(static_cast<int>(kMargin * 0.5f), rowY, getWidth() - kMargin, kSliderH);
         }
     }
-
-    // Algo flow hint
-    g.setColour(dim.withAlpha(0.5f));
-    g.setFont(juce::Font(9.0f));
-    int hintY = opAreaY + opAreaH - 13;
-    g.drawText("OP1 \xe2\x86\x92 OP2 \xe2\x9e\x95 OP3 \xe2\x86\x92 OP4  [algo 4  \xc2\xb7  FB on OP1]",
-               kMargin, hintY, getWidth() - kMargin * 2, 12,
-               juce::Justification::centred, false);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Resized
-// ─────────────────────────────────────────────────────────────────────────────
 void SquareWaveSynthAudioProcessorEditor::resized()
 {
-    const int colW   = (getWidth() - kMargin) / 4;
-    const int opAreaY = kTitleH + kMargin;
+    // Global panel
+    const int globalY = kTitleH + kMargin;
+    const int colW = (getWidth() - kMargin) / 4;
+    int gx = static_cast<int>(kMargin * 0.5f) + 8;
+    int gy = globalY + 8;
+    const int gLabelW = 70, gControlW = 100;
 
+    globalAlgo.label.setBounds(gx, gy, gLabelW, 22);
+    algorithmBox.setBounds(gx + gLabelW + 4, gy, gControlW + 40, 22); gx += gLabelW + gControlW + 60;
+
+    globalFb.label.setBounds(gx, gy, gLabelW, 22);
+    feedbackSlider.setBounds(gx + gLabelW + 4, gy, gControlW - 10, 22); gx += gLabelW + gControlW + 10;
+
+    lfoEnableBtn.setBounds(gx, gy, 50, 22); gx += 54;
+
+    globalLfoFreq.label.setBounds(gx, gy, gLabelW - 10, 22);
+    lfoFreqBox.setBounds(gx + gLabelW - 10 + 4, gy, gControlW - 10, 22); gx += gLabelW + gControlW;
+
+    gy += 26;
+    gx = static_cast<int>(kMargin * 0.5f) + 8;
+
+    globalAms.label.setBounds(gx, gy, gLabelW, 22);
+    amsSlider.setBounds(gx + gLabelW + 4, gy, gControlW - 30, 22); gx += gLabelW + gControlW - 10;
+
+    globalFms.label.setBounds(gx, gy, gLabelW, 22);
+    fmsSlider.setBounds(gx + gLabelW + 4, gy, gControlW - 30, 22); gx += gLabelW + gControlW - 10;
+
+    globalOct.label.setBounds(gx, gy, gLabelW, 22);
+    octaveSlider.setBounds(gx + gLabelW + 4, gy, gControlW - 30, 22);
+
+    // Operator columns
+    const int opAreaY = kTitleH + kMargin + kGlobalH + kMargin;
     for (int op = 0; op < 4; op++) {
         const int cx = static_cast<int>(kMargin * 0.5f) + op * colW;
         int y = opAreaY + kPad;
 
-        // Name + role
         ops[op].nameLabel.setBounds(cx + 2, y, colW - 4, 20);
-        ops[op].roleLabel.setBounds(cx + 2, y + 20, colW - 4, 14);
-        y += kHeaderH;
+        ops[op].roleLabel.setBounds(cx + 2, y + 20, colW - 4, 14); y += kHeaderH;
 
-        // Envelope display
-        ops[op].envDisplay.setBounds(cx + 4, y, colW - 8, kEnvH);
-        y += kEnvH;
+        ops[op].envDisplay.setBounds(cx + 4, y, colW - 8, kEnvH); y += kEnvH;
 
-        // 8 slider rows
-        const int labelW = 52;
-        const int sliderX = cx + labelW + 2;
-        const int sliderW = colW - labelW - 6;
+        const int labelW = 52, sliderX = cx + labelW + 2, sliderW = colW - labelW - 6;
 
         for (int s = 0; s < NUM_SLIDERS; s++) {
             int rowMidY = y + s * kSliderH + kSliderH / 2;
-            ops[op].rows[s].label.setText(SLIDER_LABELS[s],
-                                          juce::dontSendNotification);
-            ops[op].rows[s].label .setBounds(cx + 2, rowMidY - 9, labelW, 18);
+            ops[op].rows[s].label.setText(SLIDER_LABELS[s], juce::dontSendNotification);
+            ops[op].rows[s].label.setBounds(cx + 2, rowMidY - 9, labelW, 18);
             ops[op].rows[s].slider.setBounds(sliderX, rowMidY - 12, sliderW, 24);
         }
+        y += NUM_SLIDERS * kSliderH;
+
+        // Rate Scale
+        int rowMidY = y + kSliderH / 2;
+        ops[op].rsRow.label.setText("RateScale", juce::dontSendNotification);
+        ops[op].rsRow.label.setBounds(cx + 2, rowMidY - 9, labelW, 18);
+        ops[op].rsRow.slider.setBounds(sliderX, rowMidY - 12, sliderW, 24);
+        y += kSliderH;
+
+        // AM Enable
+        ops[op].amRow.label.setText("AM Enable", juce::dontSendNotification);
+        ops[op].amRow.label.setBounds(cx + 2, y, labelW, kToggleH);
+        ops[op].amRow.toggle.setBounds(sliderX, y + 4, 24, 24);
     }
 
     // MIDI keyboard
-    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kPad * 2;
-    const int kbY = kTitleH + kMargin + opAreaH + kMargin;
+    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kPad * 2;
+    const int kbY = kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin;
     midiKeyboard.setBounds(0, kbY, getWidth(), kKeyboardH);
 }

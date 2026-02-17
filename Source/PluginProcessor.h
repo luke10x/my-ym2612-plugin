@@ -8,15 +8,7 @@
 static constexpr int NUM_VOICES = 6;
 
 // ── Per-operator parameter IDs ────────────────────────────────────────────────
-// 4 operators × 8 parameters = 32 DAW-automatable parameters
-// TL  : total level        0-127  (0=loud, 127=silent)
-// AR  : attack rate        0-31
-// DR  : decay rate         0-31
-// SR  : sustain rate       0-31
-// SL  : sustain level      0-15
-// RR  : release rate       0-15
-// MUL : frequency multiply 0-15
-// DT  : detune             -3 to +3 (UI-friendly; chip uses 0-7 internally)
+// 4 operators × 10 parameters = 40 per-operator params
 static const juce::String OP_TL_ID[4]  = { "op1_TL",  "op2_TL",  "op3_TL",  "op4_TL"  };
 static const juce::String OP_AR_ID[4]  = { "op1_AR",  "op2_AR",  "op3_AR",  "op4_AR"  };
 static const juce::String OP_DR_ID[4]  = { "op1_DR",  "op2_DR",  "op3_DR",  "op4_DR"  };
@@ -25,6 +17,35 @@ static const juce::String OP_SL_ID[4]  = { "op1_SL",  "op2_SL",  "op3_SL",  "op4
 static const juce::String OP_RR_ID[4]  = { "op1_RR",  "op2_RR",  "op3_RR",  "op4_RR"  };
 static const juce::String OP_MUL_ID[4] = { "op1_MUL", "op2_MUL", "op3_MUL", "op4_MUL" };
 static const juce::String OP_DT_ID[4]  = { "op1_DT",  "op2_DT",  "op3_DT",  "op4_DT"  };
+static const juce::String OP_RS_ID[4]  = { "op1_RS",  "op2_RS",  "op3_RS",  "op4_RS"  };  // Rate Scale (KS)
+static const juce::String OP_AM_ID[4]  = { "op1_AM",  "op2_AM",  "op3_AM",  "op4_AM"  };  // AM Enable
+
+// ── Global parameters ─────────────────────────────────────────────────────────
+static const juce::String GLOBAL_ALGORITHM  = "algorithm";     // 0-7
+static const juce::String GLOBAL_FEEDBACK   = "feedback";      // 0-7
+static const juce::String GLOBAL_LFO_ENABLE = "lfoEnable";     // bool
+static const juce::String GLOBAL_LFO_FREQ   = "lfoFreq";       // 0-7 (chip values)
+static const juce::String GLOBAL_AMS        = "ams";           // AM LFO sens 0-3
+static const juce::String GLOBAL_FMS        = "fms";           // FM LFO sens 0-7
+static const juce::String GLOBAL_OCTAVE     = "octave";        // -2 to +2
+
+// LFO frequency table (Hz) — chip values 0-7
+static const char* LFO_FREQ_NAMES[8] = {
+    "3.98 Hz", "5.56 Hz", "6.02 Hz", "6.37 Hz",
+    "6.88 Hz", "9.63 Hz", "48.1 Hz", "72.2 Hz"
+};
+
+// Algorithm names for dropdown
+static const char* ALGORITHM_NAMES[8] = {
+    "1 → 2 → 3 → 4",
+    "(1+2) → 3 → 4",
+    "(1+(2→3)) → 4",
+    "((1→2)+3) → 4",
+    "(1→2) + (3→4)",
+    "(1→2) + (1→3) + (1→4)",
+    "(1→2) + 3 + 4",
+    "1 + 2 + 3 + 4"
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 class SquareWaveSynthAudioProcessor : public juce::AudioProcessor
