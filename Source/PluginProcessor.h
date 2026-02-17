@@ -23,42 +23,43 @@ static const juce::String OP_SSG_EN_ID[4] = { "op1_SSGEN", "op2_SSGEN", "op3_SSG
 static const juce::String OP_SSG_MODE_ID[4] = { "op1_SSGMODE", "op2_SSGMODE", "op3_SSGMODE", "op4_SSGMODE" };
 
 // ── Global parameters ─────────────────────────────────────────────────────────
-static const juce::String GLOBAL_ALGORITHM  = "algorithm";     // 0-7
-static const juce::String GLOBAL_FEEDBACK   = "feedback";      // 0-7
-static const juce::String GLOBAL_LFO_ENABLE = "lfoEnable";     // bool
-static const juce::String GLOBAL_LFO_FREQ   = "lfoFreq";       // 0-7 (chip values)
-static const juce::String GLOBAL_AMS        = "ams";           // AM LFO sens 0-3
-static const juce::String GLOBAL_FMS        = "fms";           // FM LFO sens 0-7
-static const juce::String GLOBAL_OCTAVE     = "octave";        // -2 to +2
+static const juce::String GLOBAL_ALGORITHM  = "algorithm";
+static const juce::String GLOBAL_FEEDBACK   = "feedback";
+static const juce::String GLOBAL_LFO_ENABLE = "lfoEnable";
+static const juce::String GLOBAL_LFO_FREQ   = "lfoFreq";
+static const juce::String GLOBAL_AMS        = "ams";
+static const juce::String GLOBAL_FMS        = "fms";
+static const juce::String GLOBAL_OCTAVE     = "octave";
 
-// LFO frequency table (Hz) — chip values 0-7
+// LFO frequency table (Hz)
 static const char* LFO_FREQ_NAMES[8] = {
     "3.98 Hz", "5.56 Hz", "6.02 Hz", "6.37 Hz",
     "6.88 Hz", "9.63 Hz", "48.1 Hz", "72.2 Hz"
 };
 
-// Algorithm names for dropdown
+// Algorithm names
 static const char* ALGORITHM_NAMES[8] = {
-    "1 → 2 → 3 → 4",
-    "(1+2) → 3 → 4",
-    "(1+(2→3)) → 4",
-    "((1→2)+3) → 4",
-    "(1→2) + (3→4)",
-    "(1→2) + (1→3) + (1→4)",
-    "(1→2) + 3 + 4",
+    "1 -> 2 -> 3 -> 4",
+    "(1+2) -> 3 -> 4",
+    "(1+(2->3)) -> 4",
+    "((1->2)+3) -> 4",
+    "(1->2) + (3->4)",
+    "(1->2) + (1->3) + (1->4)",
+    "(1->2) + 3 + 4",
     "1 + 2 + 3 + 4"
 };
 
-// SSG-EG mode names (Furnace-style notation)
+// SSG-EG mode names matching Furnace's order and notation exactly
+// Chip value 0-7 maps directly to array index 0-7
 static const char* SSG_MODE_NAMES[8] = {
-    "Down Down Down",      // 0: \\\
-    "Down.",               // 1: \__
-    "Down Up Down Up",     // 2: \/\/
-    "Down UP",             // 3: \¯¯
-    "Up Up Up",            // 4: ///
-    "Up.",                 // 5: /¯¯
-    "Up Down Up Down",     // 6: /\/\
-    "Up DOWN"              // 7: /___
+    "down down down",       // 0: Down Down Down 
+    "Down.",                // 1: Down.
+    "Down Up Down Up",      // 2: Down Down Down 
+    "Down UP",              // 3: Down UP.
+    "Up Up Up",             // 4: 
+    "Up.",                  // 5: 
+    "Up Down Up Down",      // 6: 
+    "Up DOWN"               // 7: 
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
