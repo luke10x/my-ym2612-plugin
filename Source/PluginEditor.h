@@ -148,8 +148,14 @@ private:
         juce::Label      roleLabel;
         EnvelopeDisplay  envDisplay;
         SliderRow        rows[NUM_SLIDERS];
-        SliderRow        rsRow;     // Rate Scale
-        ToggleRow        amRow;     // AM Enable
+        SliderRow        rsRow;      // Rate Scale
+        ToggleRow        amRow;      // AM Enable
+        ToggleRow        ssgEnRow;   // SSG-EG Enable
+        struct {
+            juce::ComboBox box;
+            juce::Label    label;
+            std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> att;
+        } ssgModeRow;
     };
     OpColumn ops[4];
 
@@ -168,11 +174,12 @@ private:
     void setupGlobalControls();
 
     static constexpr int kTitleH    = 46;
-    static constexpr int kGlobalH   = 70;    // global settings panel
+    static constexpr int kGlobalH   = 70;
     static constexpr int kHeaderH   = 36;
     static constexpr int kEnvH      = 60;
     static constexpr int kSliderH   = 44;
     static constexpr int kToggleH   = 30;
+    static constexpr int kComboH    = 30;    // SSG mode dropdown
     static constexpr int kKeyboardH = 80;
     static constexpr int kMargin    = 8;
     static constexpr int kPad       = 6;

@@ -33,16 +33,18 @@ SquareWaveSynthAudioProcessorEditor::SquareWaveSynthAudioProcessorEditor(
     midiKeyboard.setColour(juce::MidiKeyboardComponent::mouseOverKeyOverlayColourId, accent.withAlpha(0.3f));
     addAndMakeVisible(midiKeyboard);
 
-    // Tab order: within each op column (sliders + RS + AM)
+    // Tab order: within each op column (sliders + RS + AM + SSG-EG)
     for (int op = 0; op < 4; op++) {
-        int base = op * (NUM_SLIDERS + 2);
+        int base = op * (NUM_SLIDERS + 4);  // +4 for RS, AM, SSG-En, SSG-Mode
         for (int s = 0; s < NUM_SLIDERS; s++)
             ops[op].rows[s].slider.setExplicitFocusOrder(base + s + 1);
         ops[op].rsRow.slider.setExplicitFocusOrder(base + NUM_SLIDERS + 1);
         ops[op].amRow.toggle.setExplicitFocusOrder(base + NUM_SLIDERS + 2);
+        ops[op].ssgEnRow.toggle.setExplicitFocusOrder(base + NUM_SLIDERS + 3);
+        ops[op].ssgModeRow.box.setExplicitFocusOrder(base + NUM_SLIDERS + 4);
     }
 
-    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kPad * 2;
+    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kToggleH + kComboH + kPad * 2;
     const int totalH  = kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin + kKeyboardH;
     setSize(720, totalH);
     setResizable(true, true);
@@ -181,6 +183,20 @@ void SquareWaveSynthAudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
 
     // AM Enable
     setupToggle(col.amRow, OP_AM_ID[opIdx], colAccent);
+    
+    // SSG-EG Enable
+    setupToggle(col.ssgEnRow, OP_SSG_EN_ID[opIdx], colAccent);
+    
+    // SSG-EG Mode dropdown
+    col.ssgModeRow.box.addItemList(juce::StringArray(SSG_MODE_NAMES, 8), 1);
+    col.ssgModeRow.label.setText("SSG Mode", juce::dontSendNotification);
+    col.ssgModeRow.label.setFont(juce::Font(10.5f));
+    col.ssgModeRow.label.setColour(juce::Label::textColourId, dim);
+    col.ssgModeRow.label.setJustificationType(juce::Justification::centredRight);
+    addAndMakeVisible(col.ssgModeRow.label);
+    addAndMakeVisible(col.ssgModeRow.box);
+    col.ssgModeRow.att = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        audioProcessor.apvts, OP_SSG_MODE_ID[opIdx], col.ssgModeRow.box);
 }
 
 void SquareWaveSynthAudioProcessorEditor::setupSlider(SliderRow& row, const juce::String& paramId,
@@ -247,7 +263,7 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
 
     // Operator panel background
     const int opAreaY = kTitleH + kMargin + kGlobalH + kMargin;
-    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kPad * 2;
+    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kToggleH + kComboH + kPad * 2;
     g.setColour(panel);
     g.fillRoundedRectangle(kMargin * 0.5f, static_cast<float>(opAreaY),
                            getWidth() - kMargin, static_cast<float>(opAreaH), 6.0f);
@@ -336,10 +352,21 @@ void SquareWaveSynthAudioProcessorEditor::resized()
         ops[op].amRow.label.setText("AM Enable", juce::dontSendNotification);
         ops[op].amRow.label.setBounds(cx + 2, y, labelW, kToggleH);
         ops[op].amRow.toggle.setBounds(sliderX, y + 4, 24, 24);
+        y += kToggleH;
+        
+        // SSG-EG Enable
+        ops[op].ssgEnRow.label.setText("SSG-EG", juce::dontSendNotification);
+        ops[op].ssgEnRow.label.setBounds(cx + 2, y, labelW, kToggleH);
+        ops[op].ssgEnRow.toggle.setBounds(sliderX, y + 4, 24, 24);
+        y += kToggleH;
+        
+        // SSG-EG Mode
+        ops[op].ssgModeRow.label.setBounds(cx + 2, y, labelW, kComboH);
+        ops[op].ssgModeRow.box.setBounds(sliderX, y + 2, sliderW, 24);
     }
 
     // MIDI keyboard
-    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kPad * 2;
+    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kToggleH + kComboH + kPad * 2;
     const int kbY = kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin;
     midiKeyboard.setBounds(0, kbY, getWidth(), kKeyboardH);
 }

@@ -59,6 +59,8 @@ public:
         int dt  = 0;    // detune 0-7  (4-7 = negative on chip)
         int rs  = 0;    // rate scale (key scale) 0-3
         int am  = 0;    // AM enable 0-1
+        int ssgEnable = 0;   // SSG-EG enable 0-1
+        int ssgMode   = 0;   // SSG-EG mode 0-7
     };
 
     Ym2612Voice()
@@ -208,16 +210,15 @@ private:
         wr(0xB0, algFb);
 
         // AMS + FMS (register 0xB4)
-        // Bits: LR[7:6]=11 (both channels), AMS[5:4], FMS[2:0]
         uint8_t lrAmsFms = static_cast<uint8_t>(
             0xC0 | ((m_globalParams.ams & 3) << 4) | (m_globalParams.fms & 7));
         wr(0xB4, lrAmsFms);
 
-        // LFO enable (register 0x22)
-        wr(0x22, m_globalParams.lfoEnable ? 0x08 : 0x00);
-        // LFO frequency (register 0x22 bits[2:0] when enabled)
+        // LFO enable + frequency (register 0x22)
         if (m_globalParams.lfoEnable)
             wr(0x22, static_cast<uint8_t>(0x08 | (m_globalParams.lfoFreq & 7)));
+        else
+            wr(0x22, 0x00);
 
         // Per-operator registers
         for (int p = 0; p < 4; p++) {
@@ -231,12 +232,19 @@ private:
             uint8_t slrr  = static_cast<uint8_t>(((q.sl & 0x0F) << 4) | (q.rr & 0x0F));
             uint8_t tl    = static_cast<uint8_t>(q.tl  & 0x7F);
 
+            // SSG-EG: register 0x90 + slot offset
+            // Bit[3] = enable, bits[2:0] = mode
+            uint8_t ssgeg = 0;
+            if (q.ssgEnable)
+                ssgeg = static_cast<uint8_t>(0x08 | (q.ssgMode & 7));
+
             wr(0x30 + o, dtmul);
             wr(0x40 + o, tl);
             wr(0x50 + o, ksar);
             wr(0x60 + o, amdr);
             wr(0x70 + o, sr);
             wr(0x80 + o, slrr);
+            wr(0x90 + o, ssgeg);
         }
     }
 

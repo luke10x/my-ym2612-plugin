@@ -18,8 +18,10 @@ SquareWaveSynthAudioProcessor::createParameterLayout()
     const int defaultRR[4]  = { 10, 10, 10, 10  };
     const int defaultMUL[4] = {  1,  1,  1,  1  };
     const int defaultDT[4]  = {  0,  0,  0,  0  };
-    const int defaultRS[4]  = {  0,  0,  0,  0  };  // Rate Scale (KS)
-    const int defaultAM[4]  = {  0,  0,  0,  0  };  // AM off
+    const int defaultRS[4]  = {  0,  0,  0,  0  };
+    const int defaultAM[4]  = {  0,  0,  0,  0  };
+    const int defaultSSGEn[4]   = { 0, 0, 0, 0 };
+    const int defaultSSGMode[4] = { 0, 0, 0, 0 };
 
     // ── Per-operator parameters ───────────────────────────────────────────────
     for (int op = 0; op < 4; op++) {
@@ -45,6 +47,12 @@ SquareWaveSynthAudioProcessor::createParameterLayout()
             juce::ParameterID{OP_RS_ID[op], 1},  pre + "RateScale", 0, 3, defaultRS[op]));
         params.push_back(std::make_unique<juce::AudioParameterBool>(
             juce::ParameterID{OP_AM_ID[op], 1},  pre + "AM Enable", defaultAM[op] != 0));
+        
+        params.push_back(std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID{OP_SSG_EN_ID[op], 1}, pre + "SSG-EG Enable", defaultSSGEn[op] != 0));
+        params.push_back(std::make_unique<juce::AudioParameterChoice>(
+            juce::ParameterID{OP_SSG_MODE_ID[op], 1}, pre + "SSG-EG Mode",
+            juce::StringArray(SSG_MODE_NAMES, 8), defaultSSGMode[op]));
     }
 
     // ── Global parameters ──────────────────────────────────────────────────────
@@ -144,6 +152,9 @@ void SquareWaveSynthAudioProcessor::pushParamsToVoices()
 
         ops[op].rs  = static_cast<int>(apvts.getRawParameterValue(OP_RS_ID[op])->load());
         ops[op].am  = apvts.getRawParameterValue(OP_AM_ID[op])->load() > 0.5f ? 1 : 0;
+        
+        ops[op].ssgEnable = apvts.getRawParameterValue(OP_SSG_EN_ID[op])->load() > 0.5f ? 1 : 0;
+        ops[op].ssgMode   = static_cast<int>(apvts.getRawParameterValue(OP_SSG_MODE_ID[op])->load());
     }
 
     // Push to all voices
