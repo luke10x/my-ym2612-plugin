@@ -8,7 +8,6 @@
 static constexpr int NUM_VOICES = 6;
 
 // ── Per-operator parameter IDs ────────────────────────────────────────────────
-// 4 operators × 12 parameters = 48 per-operator params
 static const juce::String OP_TL_ID[4]  = { "op1_TL",  "op2_TL",  "op3_TL",  "op4_TL"  };
 static const juce::String OP_AR_ID[4]  = { "op1_AR",  "op2_AR",  "op3_AR",  "op4_AR"  };
 static const juce::String OP_DR_ID[4]  = { "op1_DR",  "op2_DR",  "op3_DR",  "op4_DR"  };
@@ -31,36 +30,40 @@ static const juce::String GLOBAL_AMS        = "ams";
 static const juce::String GLOBAL_FMS        = "fms";
 static const juce::String GLOBAL_OCTAVE     = "octave";
 
-// LFO frequency table (Hz)
-static const char* LFO_FREQ_NAMES[8] = {
-    "3.98 Hz", "5.56 Hz", "6.02 Hz", "6.37 Hz",
-    "6.88 Hz", "9.63 Hz", "48.1 Hz", "72.2 Hz"
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// String arrays - using juce::StringArray instead of const char* to avoid
+// encoding issues with special characters
+// ─────────────────────────────────────────────────────────────────────────────
 
-// Algorithm names
-static const char* ALGORITHM_NAMES[8] = {
-    "1 -> 2 -> 3 -> 4",
-    "(1+2) -> 3 -> 4",
-    "(1+(2->3)) -> 4",
-    "((1->2)+3) -> 4",
-    "(1->2) + (3->4)",
-    "(1->2) + (1->3) + (1->4)",
-    "(1->2) + 3 + 4",
-    "1 + 2 + 3 + 4"
-};
+inline juce::StringArray getLfoFreqNames()
+{
+    return { "3.98 Hz", "5.56 Hz", "6.02 Hz", "6.37 Hz",
+             "6.88 Hz", "9.63 Hz", "48.1 Hz", "72.2 Hz" };
+}
 
-// SSG-EG mode names matching Furnace's order and notation exactly
-// Chip value 0-7 maps directly to array index 0-7
-static const char* SSG_MODE_NAMES[8] = {
-    "down down down",       // 0: Down Down Down 
-    "Down.",                // 1: Down.
-    "Down Up Down Up",      // 2: Down Down Down 
-    "Down UP",              // 3: Down UP.
-    "Up Up Up",             // 4: 
-    "Up.",                  // 5: 
-    "Up Down Up Down",      // 6: 
-    "Up DOWN"               // 7: 
-};
+inline juce::StringArray getAlgorithmNames()
+{
+    return { "1>2>3>4",
+             "(1+2)>3>4",
+             "(1+(2>3))>4",
+             "((1>2)+3)>4",
+             "(1>2)+(3>4)",
+             "(1>2)+(1>3)+(1>4)",
+             "(1>2)+3+4",
+             "1+2+3+4" };
+}
+
+inline juce::StringArray getSsgModeNames()
+{
+    return { "down down down",
+             "Down.",
+             "Down Up Down Up",
+             "Down UP",
+             "Up Up Up",
+             "Up.",
+             "Up Down Up Down",
+             "Up DOWN" };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 class SquareWaveSynthAudioProcessor : public juce::AudioProcessor

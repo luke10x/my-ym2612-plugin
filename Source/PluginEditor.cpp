@@ -62,7 +62,7 @@ SquareWaveSynthAudioProcessorEditor::~SquareWaveSynthAudioProcessorEditor()
 void SquareWaveSynthAudioProcessorEditor::setupGlobalControls()
 {
     // Algorithm
-    algorithmBox.addItemList(juce::StringArray(ALGORITHM_NAMES, 8), 1);
+    algorithmBox.addItemList(getAlgorithmNames(), 1);
     globalAlgo.control = &algorithmBox;
     globalAlgo.cbAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         audioProcessor.apvts, GLOBAL_ALGORITHM, algorithmBox);
@@ -95,7 +95,7 @@ void SquareWaveSynthAudioProcessorEditor::setupGlobalControls()
     addAndMakeVisible(lfoEnableBtn);
 
     // LFO Freq
-    lfoFreqBox.addItemList(juce::StringArray(LFO_FREQ_NAMES, 8), 1);
+    lfoFreqBox.addItemList(getLfoFreqNames(), 1);
     globalLfoFreq.control = &lfoFreqBox;
     globalLfoFreq.cbAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         audioProcessor.apvts, GLOBAL_LFO_FREQ, lfoFreqBox);
@@ -188,7 +188,7 @@ void SquareWaveSynthAudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
     setupToggle(col.ssgEnRow, OP_SSG_EN_ID[opIdx], colAccent);
     
     // SSG-EG Mode dropdown
-    col.ssgModeRow.box.addItemList(juce::StringArray(SSG_MODE_NAMES, 8), 1);
+    col.ssgModeRow.box.addItemList(getSsgModeNames(), 1);
     col.ssgModeRow.label.setText("SSG Mode", juce::dontSendNotification);
     col.ssgModeRow.label.setFont(juce::Font(10.5f));
     col.ssgModeRow.label.setColour(juce::Label::textColourId, dim);

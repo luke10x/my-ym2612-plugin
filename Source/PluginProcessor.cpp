@@ -52,13 +52,13 @@ SquareWaveSynthAudioProcessor::createParameterLayout()
             juce::ParameterID{OP_SSG_EN_ID[op], 1}, pre + "SSG-EG Enable", defaultSSGEn[op] != 0));
         params.push_back(std::make_unique<juce::AudioParameterChoice>(
             juce::ParameterID{OP_SSG_MODE_ID[op], 1}, pre + "SSG-EG Mode",
-            juce::StringArray(SSG_MODE_NAMES, 8), defaultSSGMode[op]));
+            getSsgModeNames(), defaultSSGMode[op]));
     }
 
     // ── Global parameters ──────────────────────────────────────────────────────
     params.push_back(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID{GLOBAL_ALGORITHM, 1}, "Algorithm",
-        juce::StringArray(ALGORITHM_NAMES, 8), 4));  // default = algo 4
+        getAlgorithmNames(), 4));  // default = algo 4
 
     params.push_back(std::make_unique<juce::AudioParameterInt>(
         juce::ParameterID{GLOBAL_FEEDBACK, 1}, "Feedback", 0, 7, 5));
@@ -68,7 +68,7 @@ SquareWaveSynthAudioProcessor::createParameterLayout()
 
     params.push_back(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID{GLOBAL_LFO_FREQ, 1}, "LFO Freq",
-        juce::StringArray(LFO_FREQ_NAMES, 8), 0));  // default 3.98 Hz
+        getLfoFreqNames(), 0));  // default 3.98 Hz
 
     params.push_back(std::make_unique<juce::AudioParameterInt>(
         juce::ParameterID{GLOBAL_AMS, 1}, "AMS (AM Sens)", 0, 3, 0));
