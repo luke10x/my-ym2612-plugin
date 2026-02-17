@@ -1,23 +1,42 @@
 #pragma once
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FurnaceFormat.h  –  Furnace .fui read/write for OPN2/YM2612
-// Based on: Furnace src/engine/instrument.cpp  putInsData2/readInsData2
+// FurnaceFormat.h  –  Read/write Furnace .fui for OPN2/YM2612
 //
-// Wire format (all little-endian):
-//   [4]  "FINS"
-//   [2]  version uint16
-//   [1]  type byte  (1 = DIV_INS_FM)
-//   [1]  reserved 0x00
-//   then feature blocks:
-//     [2]  feature ID  e.g. "NA", "FM"
-//     [2]  featLen (bytes following)
-//     [featLen] data
-//   terminated by feature ID "EN" (no length/data)
+// Based EXACTLY on Furnace source:
+//   writeFeatureFM / readFeatureFM / writeFeatureNA / readFeatureNA
 //
-// "FM" block: 8 header bytes + ops*21 bytes
-//   header: alg fb fms ams fms2 ams2 ops opllPreset
-//   per op: am ar dr mult rr sl tl dt2 rs dt d2r ssgEnv dam dvb egt ksl sus vib ws ksr kvs
+// .fui layout:
+//   [0]  4B  "FINS"
+//   [4]  2B  uint16 version LE
+//   [6]  1B  uint8  type (1 = DIV_INS_FM)
+//   [7]  1B  uint8  reserved = 0
+//   feature blocks until "EN":
+//     [+0] 2B  feature ID
+//     [+2] 2B  uint16 featLen
+//     [+4] N   data
+//
+// Feature "NA":
+//   writeString(name, false)  →  uint16 length LE, then UTF-8 bytes (no null)
+//   (SafeWriter::writeString writes the length then the chars)
+//
+// Feature "FM" – all bit-packed:
+//   Byte 0:  opEnable[3..0] in bits 7..4, opCount in bits 3..0
+//   Byte 1:  (alg&7)<<4 | (fb&7)
+//   Byte 2:  (fms2&7)<<5 | (ams&3)<<3 | (fms&7)
+//   Byte 3:  (ams2&3)<<6 | (ops==4?32:0) | (opllPreset&31)
+//   Byte 4:  block&15   (always written, even for OPN2 where block=0)
+//   then for each operator (8 bytes each):
+//     Byte+0: (ksr?128:0) | (dt&7)<<4 | (mult&15)
+//     Byte+1: (sus?128:0) | (tl&127)
+//     Byte+2: (rs&3)<<6  | (vib?32:0) | (ar&31)
+//     Byte+3: (am?128:0) | (ksl&3)<<5 | (dr&31)
+//     Byte+4: (egt?128:0)| (kvs&3)<<5 | (d2r&31)
+//     Byte+5: (sl&15)<<4 | (rr&15)
+//     Byte+6: (dvb&15)<<4| (ssgEnv&15)
+//     Byte+7: (dam&7)<<5 | (dt2&3)<<3 | (ws&7)
+//
+// ssgEnv bits 3..0: bit3=enable, bits2..0=mode
 // ─────────────────────────────────────────────────────────────────────────────
 
 #include <juce_core/juce_core.h>
@@ -25,190 +44,217 @@
 
 namespace FurnaceFormat {
 
-static constexpr uint8_t  INS_FM    = 1;
-static constexpr uint16_t ENG_VER   = 220;
+static constexpr uint8_t  INS_FM  = 1;
+static constexpr uint16_t ENG_VER = 224;  // must be >=224 so Furnace reads the block byte
 
 struct Op {
-    uint8_t am=0,ar=0,dr=0,mult=1,rr=0,sl=0,tl=0,dt2=0,
-            rs=0,dt=0,d2r=0,ssgEnv=0,dam=0,dvb=0,egt=0,
-            ksl=0,sus=0,vib=0,ws=0,ksr=0,kvs=2;
+    uint8_t  am=0, ar=0, dr=0, mult=1, rr=0, sl=0, tl=0, dt2=0;
+    uint8_t  rs=0, dt=0, d2r=0, ssgEnv=0;
+    uint8_t  dam=0, dvb=0, egt=0, ksl=0, sus=0, vib=0, ws=0, ksr=0, kvs=2;
+    bool     enable=true;
 };
+
 struct Instrument {
     juce::String name;
-    uint8_t alg=0,fb=0,fms=0,ams=0,fms2=0,ams2=0,ops=4,opllPreset=0;
+    uint8_t alg=0, fb=0, fms=0, ams=0, fms2=0, ams2=0;
+    uint8_t ops=4, opllPreset=0, block=0;
     Op op[4];
 };
 
-// Possible parse failure reasons (for debugging)
-enum class ParseResult { OK, FILE_NOT_FOUND, FILE_EMPTY, BAD_MAGIC, WRONG_TYPE, NO_FM_BLOCK };
+// ─── tiny cursor ─────────────────────────────────────────────────────────────
+struct Cur {
+    const uint8_t* p;
+    const uint8_t* end;
+    bool    ok(size_t n=1) const { return p+n<=end; }
+    uint8_t  u8()  { return ok()?*p++:0; }
+    uint16_t u16() { uint8_t a=u8(),b=u8(); return uint16_t(a|(b<<8)); }
+    void     seek(const uint8_t* to){ p=(to<=end)?to:end; }
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Inner parser — operates on raw bytes, no JUCE stream API involved at all
-// ─────────────────────────────────────────────────────────────────────────────
-inline ParseResult parseBytes(const uint8_t* data, size_t size, Instrument& ins)
+inline bool readFui(const juce::File& file, Instrument& ins)
 {
-    if (size < 8) return ParseResult::BAD_MAGIC;
+    if (!file.existsAsFile()) return false;
+    juce::FileInputStream fs(file);
+    if (!fs.openedOk()) return false;
+    juce::MemoryOutputStream mb;
+    mb.writeFromInputStream(fs, file.getSize()+16);
 
-    // Check magic
-    if (data[0]!='F'||data[1]!='I'||data[2]!='N'||data[3]!='S')
-        return ParseResult::BAD_MAGIC;
+    const uint8_t* data = static_cast<const uint8_t*>(mb.getData());
+    size_t         size = mb.getDataSize();
+    if (size < 8 || memcmp(data,"FINS",4)!=0) return false;
 
-    size_t pos = 4;
-    auto r8  = [&]() -> uint8_t  { return pos < size ? data[pos++] : 0; };
-    auto r16 = [&]() -> uint16_t { uint8_t a=r8(), b=r8(); return (uint16_t)(a|(b<<8)); };
-
-    /* version */ r16();
-    uint8_t type = r8();
-    /* reserved */ r8();
-
-    if (type != INS_FM) return ParseResult::WRONG_TYPE;
+    Cur c { data+4, data+size };
+    uint16_t version = c.u16();
+    uint8_t  type    = c.u8();
+    /* reserved */     c.u8();
+    if (type != INS_FM) return false;
 
     bool gotFM = false;
 
-    while (pos + 2 <= size) {
-        char id0 = (char)r8(), id1 = (char)r8();
+    while (c.ok(2)) {
+        char id0=char(c.u8()), id1=char(c.u8());
+        if (id0=='E'&&id1=='N') break;
+        if (!c.ok(2)) break;
+        uint16_t       flen   = c.u16();
+        const uint8_t* fstart = c.p;
+        const uint8_t* fend   = fstart+flen;
+        if (fend > c.end) fend = c.end;
 
-        if (id0=='E' && id1=='N') break;   // end marker
-
-        if (pos + 2 > size) break;
-        uint16_t featLen = r16();
-        size_t   featEnd = pos + featLen;
-        if (featEnd > size) featEnd = size;
-
-        if (id0=='N' && id1=='A') {
-            size_t avail = featEnd - pos;
-            if (avail > 0)
+        // ── NA ──────────────────────────────────────────────────────────────
+        if (id0=='N'&&id1=='A') {
+            // SafeWriter::writeString(str, false) writes:
+            //   uint16 LE length, then UTF-8 bytes (no null terminator)
+            uint16_t slen = c.u16();
+            if (slen > 0 && c.ok(slen))
                 ins.name = juce::String::fromUTF8(
-                    reinterpret_cast<const char*>(data + pos), (int)avail);
+                    reinterpret_cast<const char*>(c.p), slen);
         }
-        else if (id0=='F' && id1=='M') {
-            ins.alg        = r8(); ins.fb         = r8();
-            ins.fms        = r8(); ins.ams        = r8();
-            ins.fms2       = r8(); ins.ams2       = r8();
-            ins.ops        = r8(); ins.opllPreset = r8();
 
-            int n = (int)ins.ops;
-            if (n < 0) n = 0;
-            if (n > 4) n = 4;
+        // ── FM ──────────────────────────────────────────────────────────────
+        else if (id0=='F'&&id1=='M') {
+            // Byte 0: op enable flags + opCount
+            uint8_t b0 = c.u8();
+            ins.op[0].enable = (b0&16)!=0;
+            ins.op[1].enable = (b0&32)!=0;
+            ins.op[2].enable = (b0&64)!=0;
+            ins.op[3].enable = (b0&128)!=0;
+            int opCount = b0 & 15;
 
-            for (int i = 0; i < n; i++) {
-                if (featEnd - pos < 20) break;
-                Op& op   = ins.op[i];
-                op.am    = r8(); op.ar    = r8(); op.dr    = r8(); op.mult  = r8();
-                op.rr    = r8(); op.sl    = r8(); op.tl    = r8(); op.dt2   = r8();
-                op.rs    = r8(); op.dt    = r8(); op.d2r   = r8(); op.ssgEnv= r8();
-                op.dam   = r8(); op.dvb   = r8(); op.egt   = r8(); op.ksl   = r8();
-                op.sus   = r8(); op.vib   = r8(); op.ws    = r8(); op.ksr   = r8();
-                op.kvs   = (featEnd > pos) ? r8() : 2;
+            // Byte 1: alg + fb
+            uint8_t b1 = c.u8();
+            ins.alg = (b1>>4)&7;
+            ins.fb  = b1&7;
+
+            // Byte 2: fms2 + ams + fms
+            uint8_t b2 = c.u8();
+            ins.fms2 = (b2>>5)&7;
+            ins.ams  = (b2>>3)&3;
+            ins.fms  = b2&7;
+
+            // Byte 3: ams2 + ops flag + opllPreset
+            uint8_t b3 = c.u8();
+            ins.ams2       = (b3>>6)&3;
+            ins.ops        = (b3&32)?4:2;
+            ins.opllPreset = b3&31;
+
+            // Byte 4: block – only present if version >= 224
+            if (version >= 224) ins.block = c.u8()&15;
+
+            // Operators – 8 bytes each
+            int n = juce::jlimit(0,4,opCount);
+            for (int i=0; i<n; i++) {
+                if (fend-c.p < 8) break;
+                Op& op = ins.op[i];
+
+                uint8_t o0 = c.u8();  // ksr | dt | mult
+                op.ksr  = (o0&128)?1:0;
+                op.dt   = (o0>>4)&7;
+                op.mult = o0&15;
+
+                uint8_t o1 = c.u8();  // sus | tl
+                op.sus = (o1&128)?1:0;
+                op.tl  = o1&127;
+
+                uint8_t o2 = c.u8();  // rs | vib | ar
+                op.rs  = (o2>>6)&3;
+                op.vib = (o2&32)?1:0;
+                op.ar  = o2&31;
+
+                uint8_t o3 = c.u8();  // am | ksl | dr
+                op.am  = (o3&128)?1:0;
+                op.ksl = (o3>>5)&3;
+                op.dr  = o3&31;
+
+                uint8_t o4 = c.u8();  // egt | kvs | d2r
+                op.egt = (o4&128)?1:0;
+                op.kvs = (o4>>5)&3;
+                op.d2r = o4&31;
+
+                uint8_t o5 = c.u8();  // sl | rr
+                op.sl = (o5>>4)&15;
+                op.rr = o5&15;
+
+                uint8_t o6 = c.u8();  // dvb | ssgEnv
+                op.dvb    = (o6>>4)&15;
+                op.ssgEnv = o6&15;    // bit3=enable, bits2:0=mode
+
+                uint8_t o7 = c.u8();  // dam | dt2 | ws
+                op.dam = (o7>>5)&7;
+                op.dt2 = (o7>>3)&3;
+                op.ws  = o7&7;
             }
             gotFM = true;
         }
 
-        pos = featEnd;   // skip to next feature regardless of consumption
+        c.seek(fend);
     }
-
-    return gotFM ? ParseResult::OK : ParseResult::NO_FM_BLOCK;
+    return gotFM;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Public read: load file → parse bytes
-// ─────────────────────────────────────────────────────────────────────────────
-inline bool readFui(const juce::File& file, Instrument& ins)
-{
-    if (!file.existsAsFile()) {
-        DBG("FurnaceFormat::readFui - file not found: " + file.getFullPathName());
-        return false;
-    }
-
-    // Read via FileInputStream byte-by-byte into a MemoryBlock
-    // Use createInputStream so we don't rely on loadFileAsData existing
-    std::unique_ptr<juce::FileInputStream> stream (new juce::FileInputStream(file));
-    if (!stream->openedOk()) {
-        DBG("FurnaceFormat::readFui - failed to open stream");
-        return false;
-    }
-
-    juce::MemoryOutputStream mb;
-    mb.writeFromInputStream(*stream, (int64_t)file.getSize() + 1024);
-
-    const uint8_t* data = static_cast<const uint8_t*>(mb.getData());
-    size_t size = mb.getDataSize();
-
-    DBG("FurnaceFormat::readFui - read " + juce::String((int)size) + " bytes");
-    if (size >= 4) {
-        DBG("FurnaceFormat::readFui - magic bytes: "
-            + juce::String::toHexString(data[0]) + " "
-            + juce::String::toHexString(data[1]) + " "
-            + juce::String::toHexString(data[2]) + " "
-            + juce::String::toHexString(data[3]));
-    }
-
-    auto result = parseBytes(data, size, ins);
-
-    if (result != ParseResult::OK) {
-        const char* reason = "unknown";
-        switch (result) {
-            case ParseResult::BAD_MAGIC:    reason = "bad magic (not FINS)"; break;
-            case ParseResult::WRONG_TYPE:   reason = "wrong type (not FM/OPN2)"; break;
-            case ParseResult::NO_FM_BLOCK:  reason = "no FM feature block found"; break;
-            default: break;
-        }
-        DBG("FurnaceFormat::readFui - parse failed: " + juce::String(reason));
-        return false;
-    }
-
-    DBG("FurnaceFormat::readFui - OK: name='" + ins.name
-        + "' alg=" + juce::String(ins.alg)
-        + " fb="   + juce::String(ins.fb)
-        + " ops="  + juce::String(ins.ops));
-    for (int i = 0; i < 4; i++)
-        DBG("  OP" + juce::String(i+1)
-            + " ar=" + juce::String(ins.op[i].ar)
-            + " tl=" + juce::String(ins.op[i].tl)
-            + " mult=" + juce::String(ins.op[i].mult)
-            + " rr=" + juce::String(ins.op[i].rr));
-    return true;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Public write
 // ─────────────────────────────────────────────────────────────────────────────
 inline bool writeFui(const juce::File& file, const Instrument& ins)
 {
     juce::MemoryOutputStream out;
+    auto w8  = [&](uint8_t  v){ out.writeByte(char(v)); };
+    auto w16 = [&](uint16_t v){ w8(v&0xFF); w8(uint8_t(v>>8)); };
 
-    auto w8  = [&](uint8_t v)  { out.writeByte((char)v); };
-    auto w16 = [&](uint16_t v) { w8(v&0xFF); w8((v>>8)&0xFF); };
-
-    out.write("FINS", 4);
+    // Header
+    out.write("FINS",4);
     w16(ENG_VER);
     w8(INS_FM);
     w8(0);
 
-    // NA block
-    if (ins.name.isNotEmpty()) {
+    // Feature NA – SafeWriter::writeString(name,false) = uint16 len + bytes
+    {
         auto utf8 = ins.name.toUTF8();
-        uint16_t nlen = (uint16_t)(std::strlen(utf8) + 1);
-        out.write("NA", 2); w16(nlen);
-        out.write(utf8, nlen);
+        uint16_t slen = uint16_t(strlen(utf8));
+        out.write("NA",2); w16(uint16_t(slen+2));  // featLen includes the 2-byte length field
+        w16(slen);
+        out.write(utf8, slen);
     }
 
-    // FM block
-    uint16_t fmLen = 8 + (uint16_t)ins.ops * 21;
-    out.write("FM", 2); w16(fmLen);
-    w8(ins.alg);  w8(ins.fb);   w8(ins.fms);  w8(ins.ams);
-    w8(ins.fms2); w8(ins.ams2); w8(ins.ops);  w8(ins.opllPreset);
-    for (int i = 0; i < (int)ins.ops; i++) {
+    // Feature FM
+    int opCount = juce::jlimit(0,4,int(ins.ops));
+    // featLen = 5 header bytes + opCount*8 op bytes
+    uint16_t fmLen = uint16_t(5 + opCount*8);
+    out.write("FM",2); w16(fmLen);
+
+    // Byte 0: op enable + opCount
+    uint8_t b0 = uint8_t(opCount & 15);
+    if (ins.op[0].enable) b0 |= 16;
+    if (ins.op[1].enable) b0 |= 32;
+    if (ins.op[2].enable) b0 |= 64;
+    if (ins.op[3].enable) b0 |= 128;
+    w8(b0);
+
+    // Byte 1: alg + fb
+    w8(uint8_t(((ins.alg&7)<<4)|(ins.fb&7)));
+
+    // Byte 2: fms2 + ams + fms
+    w8(uint8_t(((ins.fms2&7)<<5)|((ins.ams&3)<<3)|(ins.fms&7)));
+
+    // Byte 3: ams2 + ops flag + opllPreset
+    w8(uint8_t(((ins.ams2&3)<<6)|((ins.ops==4)?32:0)|(ins.opllPreset&31)));
+
+    // Byte 4: block
+    w8(ins.block&15);
+
+    // Operator bytes (8 each)
+    for (int i=0; i<opCount; i++) {
         const Op& op = ins.op[i];
-        w8(op.am);  w8(op.ar);  w8(op.dr);  w8(op.mult);
-        w8(op.rr);  w8(op.sl);  w8(op.tl);  w8(op.dt2);
-        w8(op.rs);  w8(op.dt);  w8(op.d2r); w8(op.ssgEnv);
-        w8(op.dam); w8(op.dvb); w8(op.egt); w8(op.ksl);
-        w8(op.sus); w8(op.vib); w8(op.ws);  w8(op.ksr);
-        w8(op.kvs);
+        w8(uint8_t((op.ksr?128:0)|((op.dt&7)<<4)|(op.mult&15)));
+        w8(uint8_t((op.sus?128:0)|(op.tl&127)));
+        w8(uint8_t(((op.rs&3)<<6)|(op.vib?32:0)|(op.ar&31)));
+        w8(uint8_t((op.am?128:0)|((op.ksl&3)<<5)|(op.dr&31)));
+        w8(uint8_t((op.egt?128:0)|((op.kvs&3)<<5)|(op.d2r&31)));
+        w8(uint8_t(((op.sl&15)<<4)|(op.rr&15)));
+        w8(uint8_t(((op.dvb&15)<<4)|(op.ssgEnv&15)));
+        w8(uint8_t(((op.dam&7)<<5)|((op.dt2&3)<<3)|(op.ws&7)));
     }
 
-    out.write("EN", 2);
+    // End marker
+    out.write("EN",2);
 
     return file.replaceWithData(out.getData(), out.getDataSize());
 }
