@@ -12,6 +12,10 @@ static const juce::String* PARAM_IDS[8] = {
 static const int PARAM_MIN[8] = {   0,  0,  0,  0,  0,  0,  0, -3 };
 static const int PARAM_MAX[8] = { 127, 31, 31, 15, 31, 15, 15,  3 };
 
+static constexpr int NUM_SLIDERS_BEFORE_ENV = 1;   // Just Level
+static constexpr int NUM_SLIDERS_AFTER_ENV = 5;    // AR, DR, SL, SR, RR
+static constexpr int NUM_SLIDERS_EXTRA = 2;        // MUL, DT
+
 // ─────────────────────────────────────────────────────────────────────────────
 SquareWaveSynthAudioProcessorEditor::SquareWaveSynthAudioProcessorEditor(
     SquareWaveSynthAudioProcessor& p)
@@ -33,9 +37,9 @@ SquareWaveSynthAudioProcessorEditor::SquareWaveSynthAudioProcessorEditor(
     midiKeyboard.setColour(juce::MidiKeyboardComponent::mouseOverKeyOverlayColourId, accent.withAlpha(0.3f));
     addAndMakeVisible(midiKeyboard);
 
-    // Tab order: within each op column (sliders + RS + AM + SSG-Mode)
+    // Tab order: within each op column
     for (int op = 0; op < 4; op++) {
-        int base = op * (NUM_SLIDERS + 3);  // +3 for RS, AM, SSG-Mode
+        int base = op * (NUM_SLIDERS + 3);
         for (int s = 0; s < NUM_SLIDERS; s++)
             ops[op].rows[s].slider.setExplicitFocusOrder(base + s + 1);
         ops[op].rsRow.slider.setExplicitFocusOrder(base + NUM_SLIDERS + 1);
@@ -43,7 +47,10 @@ SquareWaveSynthAudioProcessorEditor::SquareWaveSynthAudioProcessorEditor(
         ops[op].ssgModeRow.box.setExplicitFocusOrder(base + NUM_SLIDERS + 3);
     }
 
-    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kComboH + kPad * 2;
+    // New layout: Level above EG, then EG, then SSG below EG, then envelope params, then extras
+    const int opAreaH = kHeaderH + kSliderH + kEnvH + kComboH + 
+                        NUM_SLIDERS_AFTER_ENV * kSliderH + NUM_SLIDERS_EXTRA * kSliderH + 
+                        kSliderH + kToggleH + kPad * 2;
     const int totalH  = kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin + kKeyboardH;
     setSize(720, totalH);
     setResizable(true, true);
@@ -300,7 +307,9 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
 
     // Operator panel background
     const int opAreaY = kTitleH + kMargin + kGlobalH + kMargin;
-    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kComboH + kPad * 2;
+    const int opAreaH = kHeaderH + kSliderH + kEnvH + kComboH + 
+                        NUM_SLIDERS_AFTER_ENV * kSliderH + NUM_SLIDERS_EXTRA * kSliderH + 
+                        kSliderH + kToggleH + kPad * 2;
     g.setColour(panel);
     g.fillRoundedRectangle(kMargin * 0.5f, static_cast<float>(opAreaY),
                            getWidth() - kMargin, static_cast<float>(opAreaH), 6.0f);
@@ -314,10 +323,13 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
                    x, static_cast<float>(opAreaY + opAreaH - 6), 1.0f);
     }
 
-    // Alternating row backgrounds
-    for (int s = 0; s < NUM_SLIDERS; s++) {
-        if (s % 2 == 0) {
-            int rowY = opAreaY + kHeaderH + kEnvH + kPad + s * kSliderH;
+    // Alternating row backgrounds for sliders after envelope
+    // Skip Level (before env) and SSG (right after env)
+    // Shade AR, SL, RR, DT, RS (indices 1, 3, 5, 7, and RS row)
+    const int firstEnvSliderY = opAreaY + kHeaderH + kSliderH + kEnvH + kComboH;
+    for (int s = 0; s < NUM_SLIDERS_AFTER_ENV + NUM_SLIDERS_EXTRA + 1; s++) {  // +1 for RS
+        if (s % 2 == 0) {  // Shade even rows: 0=AR, 2=SL, 4=RR, 6=DT
+            int rowY = firstEnvSliderY + s * kSliderH;
             g.setColour(juce::Colour(0x08FFFFFF));
             g.fillRect(static_cast<int>(kMargin * 0.5f), rowY, getWidth() - kMargin, kSliderH);
         }
@@ -327,61 +339,108 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
 // ─────────────────────────────────────────────────────────────────────────────
 void SquareWaveSynthAudioProcessorEditor::resized()
 {
-    // Global panel
+    // Global panel - 2 rows × 4 columns matching operator widths
     const int globalY = kTitleH + kMargin;
     const int colW = (getWidth() - kMargin) / 4;
-    int gx = static_cast<int>(kMargin * 0.5f) + 8;
-    int gy = globalY + 8;
-    const int gLabelW = 70, gControlW = 100;
-
-    globalAlgo.label.setBounds(gx, gy, gLabelW, 22);
-    algorithmBox.setBounds(gx + gLabelW + 4, gy, gControlW + 40, 22); gx += gLabelW + gControlW + 60;
-
-    globalFb.label.setBounds(gx, gy, gLabelW, 22);
-    feedbackSlider.setBounds(gx + gLabelW + 4, gy, gControlW - 10, 22); gx += gLabelW + gControlW + 10;
-
-    globalLfoFreq.label.setBounds(gx, gy, gLabelW - 25, 22);
-    lfoFreqBox.setBounds(gx + gLabelW - 25 + 4, gy, gControlW + 10, 22);
-
-    gy += 26;
-    gx = static_cast<int>(kMargin * 0.5f) + 8;
-
-    globalAms.label.setBounds(gx, gy, gLabelW, 22);
-    amsSlider.setBounds(gx + gLabelW + 4, gy, gControlW - 30, 22); gx += gLabelW + gControlW - 10;
-
-    globalFms.label.setBounds(gx, gy, gLabelW, 22);
-    fmsSlider.setBounds(gx + gLabelW + 4, gy, gControlW - 30, 22); gx += gLabelW + gControlW - 10;
-
-    globalOct.label.setBounds(gx, gy, gLabelW, 22);
-    octaveSlider.setBounds(gx + gLabelW + 4, gy, gControlW - 30, 22);
+    const int gRowH = 28;
+    const int gPad = 4;
     
-    // Import/Export buttons (right side of global panel, row 2)
-    importBtn.setBounds(getWidth() - 180, gy, 80, 22);
-    exportBtn.setBounds(getWidth() - 90, gy, 80, 22);
+    // Row 1: Algorithm | Feedback | Octave | Import
+    int row1Y = globalY + 6;
+    
+    // Col 0: Algorithm
+    algorithmBox.setBounds(static_cast<int>(kMargin * 0.5f) + gPad, row1Y, colW - gPad * 2, gRowH);
+    globalAlgo.label.setBounds(0, 0, 0, 0);  // Hide label, dropdown is self-explanatory
+    
+    // Col 1: Feedback
+    int col1X = static_cast<int>(kMargin * 0.5f) + colW;
+    globalFb.label.setBounds(col1X + gPad, row1Y, 50, gRowH);
+    feedbackSlider.setBounds(col1X + 50 + gPad * 2, row1Y, colW - 50 - gPad * 3, gRowH);
+    
+    // Col 2: Octave
+    int col2X = static_cast<int>(kMargin * 0.5f) + colW * 2;
+    globalOct.label.setBounds(col2X + gPad, row1Y, 50, gRowH);
+    octaveSlider.setBounds(col2X + 50 + gPad * 2, row1Y, colW - 50 - gPad * 3, gRowH);
+    
+    // Col 3: Import button
+    int col3X = static_cast<int>(kMargin * 0.5f) + colW * 3;
+    importBtn.setBounds(col3X + gPad, row1Y, colW - gPad * 2, gRowH);
+    
+    // Row 2: LFO | AMS | FMS | Export
+    int row2Y = row1Y + gRowH + 6;
+    
+    // Col 0: LFO
+    lfoFreqBox.setBounds(static_cast<int>(kMargin * 0.5f) + gPad, row2Y, colW - gPad * 2, gRowH);
+    globalLfoFreq.label.setBounds(0, 0, 0, 0);  // Hide label
+    
+    // Col 1: AMS
+    globalAms.label.setBounds(col1X + gPad, row2Y, 50, gRowH);
+    amsSlider.setBounds(col1X + 50 + gPad * 2, row2Y, colW - 50 - gPad * 3, gRowH);
+    
+    // Col 2: FMS
+    globalFms.label.setBounds(col2X + gPad, row2Y, 50, gRowH);
+    fmsSlider.setBounds(col2X + 50 + gPad * 2, row2Y, colW - 50 - gPad * 3, gRowH);
+    
+    // Col 3: Export button
+    exportBtn.setBounds(col3X + gPad, row2Y, colW - gPad * 2, gRowH);
 
-    // Operator columns
+    // Operator columns - new layout:
+    // Header (name + role)
+    // Level slider
+    // Envelope display
+    // SSG-EG dropdown
+    // AR, DR, SL, SR, RR sliders
+    // MUL, DT sliders
+    // Rate Scale slider
+    // AM Enable toggle
     const int opAreaY = kTitleH + kMargin + kGlobalH + kMargin;
     for (int op = 0; op < 4; op++) {
         const int cx = static_cast<int>(kMargin * 0.5f) + op * colW;
         int y = opAreaY + kPad;
 
+        // Header
         ops[op].nameLabel.setBounds(cx + 2, y, colW - 4, 20);
-        ops[op].roleLabel.setBounds(cx + 2, y + 20, colW - 4, 14); y += kHeaderH;
-
-        ops[op].envDisplay.setBounds(cx + 4, y, colW - 8, kEnvH); y += kEnvH;
+        ops[op].roleLabel.setBounds(cx + 2, y + 20, colW - 4, 14); 
+        y += kHeaderH;
 
         const int labelW = 52, sliderX = cx + labelW + 2, sliderW = colW - labelW - 6;
 
-        for (int s = 0; s < NUM_SLIDERS; s++) {
-            int rowMidY = y + s * kSliderH + kSliderH / 2;
+        // Level slider (before envelope)
+        int rowMidY = y + kSliderH / 2;
+        ops[op].rows[0].label.setText("Level", juce::dontSendNotification);
+        ops[op].rows[0].label.setBounds(cx + 2, rowMidY - 9, labelW, 18);
+        ops[op].rows[0].slider.setBounds(sliderX, rowMidY - 12, sliderW, 24);
+        y += kSliderH;
+
+        // Envelope display
+        ops[op].envDisplay.setBounds(cx + 4, y, colW - 8, kEnvH); 
+        y += kEnvH;
+
+        // SSG-EG dropdown (right below envelope)
+        ops[op].ssgModeRow.label.setBounds(cx + 2, y + 2, labelW, kComboH - 4);
+        ops[op].ssgModeRow.box.setBounds(sliderX, y + 2, sliderW, kComboH - 4);
+        y += kComboH;
+
+        // Envelope parameter sliders: AR, DR, SL, SR, RR (indices 1-5)
+        for (int s = 1; s <= 5; s++) {
+            rowMidY = y + kSliderH / 2;
             ops[op].rows[s].label.setText(SLIDER_LABELS[s], juce::dontSendNotification);
             ops[op].rows[s].label.setBounds(cx + 2, rowMidY - 9, labelW, 18);
             ops[op].rows[s].slider.setBounds(sliderX, rowMidY - 12, sliderW, 24);
+            y += kSliderH;
         }
-        y += NUM_SLIDERS * kSliderH;
+
+        // Extra sliders: MUL, DT (indices 6-7)
+        for (int s = 6; s < 8; s++) {
+            rowMidY = y + kSliderH / 2;
+            ops[op].rows[s].label.setText(SLIDER_LABELS[s], juce::dontSendNotification);
+            ops[op].rows[s].label.setBounds(cx + 2, rowMidY - 9, labelW, 18);
+            ops[op].rows[s].slider.setBounds(sliderX, rowMidY - 12, sliderW, 24);
+            y += kSliderH;
+        }
 
         // Rate Scale
-        int rowMidY = y + kSliderH / 2;
+        rowMidY = y + kSliderH / 2;
         ops[op].rsRow.label.setText("RateScale", juce::dontSendNotification);
         ops[op].rsRow.label.setBounds(cx + 2, rowMidY - 9, labelW, 18);
         ops[op].rsRow.slider.setBounds(sliderX, rowMidY - 12, sliderW, 24);
@@ -391,15 +450,14 @@ void SquareWaveSynthAudioProcessorEditor::resized()
         ops[op].amRow.label.setText("AM Enable", juce::dontSendNotification);
         ops[op].amRow.label.setBounds(cx + 2, y, labelW, kToggleH);
         ops[op].amRow.toggle.setBounds(sliderX, y + 4, 24, 24);
-        y += kToggleH;
-        
-        // SSG-EG Mode (includes Off option)
-        ops[op].ssgModeRow.label.setBounds(cx + 2, y, labelW, kComboH);
-        ops[op].ssgModeRow.box.setBounds(sliderX, y + 2, sliderW, 24);
     }
 
-    // MIDI keyboard
-    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kComboH + kPad * 2;
+    // MIDI keyboard - centered with background padding
+    const int opAreaH = kHeaderH + kSliderH + kEnvH + kComboH + 
+                        NUM_SLIDERS_AFTER_ENV * kSliderH + NUM_SLIDERS_EXTRA * kSliderH + 
+                        kSliderH + kToggleH + kPad * 2;
     const int kbY = kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin;
-    midiKeyboard.setBounds(0, kbY, getWidth(), kKeyboardH);
+    const int kbWidth = getWidth() - kMargin * 4;  // Inset from edges
+    const int kbX = (getWidth() - kbWidth) / 2;
+    midiKeyboard.setBounds(kbX, kbY, kbWidth, kKeyboardH);
 }
