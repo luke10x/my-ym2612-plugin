@@ -129,8 +129,12 @@ void SquareWaveSynthAudioProcessor::pushParamsToVoices()
     Ym2612Voice::GlobalParams gp;
     gp.algorithm = static_cast<int>(apvts.getRawParameterValue(GLOBAL_ALGORITHM)->load());
     gp.feedback  = static_cast<int>(apvts.getRawParameterValue(GLOBAL_FEEDBACK)->load());
-    gp.lfoEnable = apvts.getRawParameterValue(GLOBAL_LFO_ENABLE)->load() > 0.5f;
-    gp.lfoFreq   = static_cast<int>(apvts.getRawParameterValue(GLOBAL_LFO_FREQ)->load());
+    
+    // LFO Freq dropdown: 0=Off, 1-8=chip values 0-7
+    int lfoFreqIdx = static_cast<int>(apvts.getRawParameterValue(GLOBAL_LFO_FREQ)->load());
+    gp.lfoEnable = (lfoFreqIdx > 0);
+    gp.lfoFreq   = (lfoFreqIdx > 0) ? (lfoFreqIdx - 1) : 0;
+    
     gp.ams       = static_cast<int>(apvts.getRawParameterValue(GLOBAL_AMS)->load());
     gp.fms       = static_cast<int>(apvts.getRawParameterValue(GLOBAL_FMS)->load());
     gp.octave    = static_cast<int>(apvts.getRawParameterValue(GLOBAL_OCTAVE)->load());
@@ -154,8 +158,10 @@ void SquareWaveSynthAudioProcessor::pushParamsToVoices()
         ops[op].rs  = static_cast<int>(apvts.getRawParameterValue(OP_RS_ID[op])->load());
         ops[op].am  = apvts.getRawParameterValue(OP_AM_ID[op])->load() > 0.5f ? 1 : 0;
         
-        ops[op].ssgEnable = apvts.getRawParameterValue(OP_SSG_EN_ID[op])->load() > 0.5f ? 1 : 0;
-        ops[op].ssgMode   = static_cast<int>(apvts.getRawParameterValue(OP_SSG_MODE_ID[op])->load());
+        // SSG Mode dropdown: 0=Off/disabled, 1-8=chip modes 0-7
+        int ssgIdx = static_cast<int>(apvts.getRawParameterValue(OP_SSG_MODE_ID[op])->load());
+        ops[op].ssgEnable = (ssgIdx > 0) ? 1 : 0;
+        ops[op].ssgMode   = (ssgIdx > 0) ? (ssgIdx - 1) : 0;
     }
 
     // Push to all voices
@@ -237,6 +243,10 @@ bool SquareWaveSynthAudioProcessor::importFurnaceInstrument(const juce::File& fi
     set(GLOBAL_FEEDBACK,  float(ins.fb  & 7));
     set(GLOBAL_AMS,       float(ins.ams & 3));
     set(GLOBAL_FMS,       float(ins.fms & 7));
+    
+    // LFO: Furnace has separate enable flag (bit in opCount byte, not saved in our format)
+    // For now, assume LFO is disabled on import. User can enable via dropdown.
+    set(GLOBAL_LFO_FREQ, 0.0f);  // index 0 = Off
 
     // Per-operator
     for (int op = 0; op < 4; op++) {
@@ -259,10 +269,14 @@ bool SquareWaveSynthAudioProcessor::importFurnaceInstrument(const juce::File& fi
                    :                                 -(chipDT - 4);
         set(OP_DT_ID[op], float(uiDT));
 
-        set(OP_AM_ID[op],     fop.am  != 0        ? 1.0f : 0.0f);
-        // ssgEnv: bit3=enable, bits2..0=mode
-        set(OP_SSG_EN_ID[op],   (fop.ssgEnv & 0x08) ? 1.0f : 0.0f);
-        set(OP_SSG_MODE_ID[op], float(fop.ssgEnv & 0x07));
+        set(OP_AM_ID[op], fop.am != 0 ? 1.0f : 0.0f);
+        
+        // SSG-EG: Furnace ssgEnv bit3=enable, bits2:0=mode
+        // Map to dropdown: 0=Off, 1-8=modes 0-7
+        bool ssgEn   = (fop.ssgEnv & 0x08) != 0;
+        int ssgMode  = fop.ssgEnv & 0x07;
+        int dropdownIdx = ssgEn ? (ssgMode + 1) : 0;
+        set(OP_SSG_MODE_ID[op], float(dropdownIdx));
     }
 
     pushParamsToVoices();
@@ -309,10 +323,14 @@ bool SquareWaveSynthAudioProcessor::exportFurnaceInstrument(
         int uiDT = gi(OP_DT_ID[op]);
         fop.dt   = uint8_t(uiDT < 0 ? (4 - uiDT) : uiDT);
 
-        // ssgEnv: bit3=enable, bits2:0=mode
-        int ssgEn   = gi(OP_SSG_EN_ID[op]);
-        int ssgMode = gi(OP_SSG_MODE_ID[op]);
-        fop.ssgEnv  = uint8_t(ssgEn ? (0x08 | (ssgMode & 0x07)) : 0x00);
+        // SSG-EG: dropdown index 0=Off, 1-8=modes 0-7 → Furnace ssgEnv
+        int dropdownIdx = gi(OP_SSG_MODE_ID[op]);
+        if (dropdownIdx == 0) {
+            fop.ssgEnv = 0x00;  // disabled
+        } else {
+            int mode = dropdownIdx - 1;  // 1→0, 2→1, ..., 8→7
+            fop.ssgEnv = uint8_t(0x08 | (mode & 0x07));  // enabled with mode
+        }
 
         fop.kvs = 2;
         fop.dam = fop.dvb = fop.egt = fop.ksl = 0;

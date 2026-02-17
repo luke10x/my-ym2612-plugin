@@ -121,7 +121,6 @@ private:
 
     juce::ComboBox algorithmBox, lfoFreqBox;
     juce::Slider   feedbackSlider, amsSlider, fmsSlider, octaveSlider;
-    juce::ToggleButton lfoEnableBtn;
     juce::TextButton importBtn, exportBtn;
 
     LabeledControl globalAlgo, globalFb, globalLfoEn, globalLfoFreq,
@@ -139,9 +138,9 @@ private:
         std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> att;
     };
 
-    static constexpr int NUM_SLIDERS = 8;  // TL, AR, DR, SR, SL, RR, MUL, DT
+    static constexpr int NUM_SLIDERS = 8;  // TL, AR, DR, SL, SR, RR, MUL, DT
     static constexpr const char* SLIDER_LABELS[NUM_SLIDERS] = {
-        "Level", "Attack", "Decay", "Sus.Rate", "Sus.Lvl", "Release", "Multi", "Detune"
+        "Level", "Attack", "Decay", "Sus.Lvl", "Sus.Rate", "Release", "Multi", "Detune"
     };
 
     struct OpColumn {
@@ -151,12 +150,11 @@ private:
         SliderRow        rows[NUM_SLIDERS];
         SliderRow        rsRow;      // Rate Scale
         ToggleRow        amRow;      // AM Enable
-        ToggleRow        ssgEnRow;   // SSG-EG Enable
         struct {
             juce::ComboBox box;
             juce::Label    label;
             std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> att;
-        } ssgModeRow;
+        } ssgModeRow;  // SSG-EG Mode (includes Off option)
     };
     OpColumn ops[4];
 

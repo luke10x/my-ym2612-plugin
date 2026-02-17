@@ -7,10 +7,10 @@ static const char* OP_ROLE[4] = { "Modulator", "Carrier", "Modulator", "Carrier"
 static const bool  OP_CARRIER[4] = { false, true, false, true };
 
 static const juce::String* PARAM_IDS[8] = {
-    OP_TL_ID, OP_AR_ID, OP_DR_ID, OP_SR_ID, OP_SL_ID, OP_RR_ID, OP_MUL_ID, OP_DT_ID
+    OP_TL_ID, OP_AR_ID, OP_DR_ID, OP_SL_ID, OP_SR_ID, OP_RR_ID, OP_MUL_ID, OP_DT_ID
 };
 static const int PARAM_MIN[8] = {   0,  0,  0,  0,  0,  0,  0, -3 };
-static const int PARAM_MAX[8] = { 127, 31, 31, 31, 15, 15, 15,  3 };
+static const int PARAM_MAX[8] = { 127, 31, 31, 15, 31, 15, 15,  3 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 SquareWaveSynthAudioProcessorEditor::SquareWaveSynthAudioProcessorEditor(
@@ -33,18 +33,17 @@ SquareWaveSynthAudioProcessorEditor::SquareWaveSynthAudioProcessorEditor(
     midiKeyboard.setColour(juce::MidiKeyboardComponent::mouseOverKeyOverlayColourId, accent.withAlpha(0.3f));
     addAndMakeVisible(midiKeyboard);
 
-    // Tab order: within each op column (sliders + RS + AM + SSG-EG)
+    // Tab order: within each op column (sliders + RS + AM + SSG-Mode)
     for (int op = 0; op < 4; op++) {
-        int base = op * (NUM_SLIDERS + 4);  // +4 for RS, AM, SSG-En, SSG-Mode
+        int base = op * (NUM_SLIDERS + 3);  // +3 for RS, AM, SSG-Mode
         for (int s = 0; s < NUM_SLIDERS; s++)
             ops[op].rows[s].slider.setExplicitFocusOrder(base + s + 1);
         ops[op].rsRow.slider.setExplicitFocusOrder(base + NUM_SLIDERS + 1);
         ops[op].amRow.toggle.setExplicitFocusOrder(base + NUM_SLIDERS + 2);
-        ops[op].ssgEnRow.toggle.setExplicitFocusOrder(base + NUM_SLIDERS + 3);
-        ops[op].ssgModeRow.box.setExplicitFocusOrder(base + NUM_SLIDERS + 4);
+        ops[op].ssgModeRow.box.setExplicitFocusOrder(base + NUM_SLIDERS + 3);
     }
 
-    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kToggleH + kComboH + kPad * 2;
+    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kComboH + kPad * 2;
     const int totalH  = kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin + kKeyboardH;
     setSize(720, totalH);
     setResizable(true, true);
@@ -87,19 +86,12 @@ void SquareWaveSynthAudioProcessorEditor::setupGlobalControls()
     addAndMakeVisible(globalFb.label);
     addAndMakeVisible(feedbackSlider);
 
-    // LFO Enable
-    lfoEnableBtn.setButtonText("LFO");
-    globalLfoEn.control = &lfoEnableBtn;
-    globalLfoEn.btnAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-        audioProcessor.apvts, GLOBAL_LFO_ENABLE, lfoEnableBtn);
-    addAndMakeVisible(lfoEnableBtn);
-
-    // LFO Freq
+    // LFO Freq (includes Off option now)
     lfoFreqBox.addItemList(getLfoFreqNames(), 1);
     globalLfoFreq.control = &lfoFreqBox;
     globalLfoFreq.cbAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         audioProcessor.apvts, GLOBAL_LFO_FREQ, lfoFreqBox);
-    globalLfoFreq.label.setText("LFO Freq", juce::dontSendNotification);
+    globalLfoFreq.label.setText("LFO", juce::dontSendNotification);
     globalLfoFreq.label.setJustificationType(juce::Justification::centredRight);
     globalLfoFreq.label.setFont(juce::Font(11.0f));
     globalLfoFreq.label.setColour(juce::Label::textColourId, dim);
@@ -232,12 +224,9 @@ void SquareWaveSynthAudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
     // AM Enable
     setupToggle(col.amRow, OP_AM_ID[opIdx], colAccent);
     
-    // SSG-EG Enable
-    setupToggle(col.ssgEnRow, OP_SSG_EN_ID[opIdx], colAccent);
-    
-    // SSG-EG Mode dropdown
+    // SSG-EG Mode dropdown (includes Off option now)
     col.ssgModeRow.box.addItemList(getSsgModeNames(), 1);
-    col.ssgModeRow.label.setText("SSG Mode", juce::dontSendNotification);
+    col.ssgModeRow.label.setText("SSG-EG", juce::dontSendNotification);
     col.ssgModeRow.label.setFont(juce::Font(10.5f));
     col.ssgModeRow.label.setColour(juce::Label::textColourId, dim);
     col.ssgModeRow.label.setJustificationType(juce::Justification::centredRight);
@@ -311,7 +300,7 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
 
     // Operator panel background
     const int opAreaY = kTitleH + kMargin + kGlobalH + kMargin;
-    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kToggleH + kComboH + kPad * 2;
+    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kComboH + kPad * 2;
     g.setColour(panel);
     g.fillRoundedRectangle(kMargin * 0.5f, static_cast<float>(opAreaY),
                            getWidth() - kMargin, static_cast<float>(opAreaH), 6.0f);
@@ -351,10 +340,8 @@ void SquareWaveSynthAudioProcessorEditor::resized()
     globalFb.label.setBounds(gx, gy, gLabelW, 22);
     feedbackSlider.setBounds(gx + gLabelW + 4, gy, gControlW - 10, 22); gx += gLabelW + gControlW + 10;
 
-    lfoEnableBtn.setBounds(gx, gy, 50, 22); gx += 54;
-
-    globalLfoFreq.label.setBounds(gx, gy, gLabelW - 10, 22);
-    lfoFreqBox.setBounds(gx + gLabelW - 10 + 4, gy, gControlW - 10, 22); gx += gLabelW + gControlW;
+    globalLfoFreq.label.setBounds(gx, gy, gLabelW - 25, 22);
+    lfoFreqBox.setBounds(gx + gLabelW - 25 + 4, gy, gControlW + 10, 22);
 
     gy += 26;
     gx = static_cast<int>(kMargin * 0.5f) + 8;
@@ -368,11 +355,9 @@ void SquareWaveSynthAudioProcessorEditor::resized()
     globalOct.label.setBounds(gx, gy, gLabelW, 22);
     octaveSlider.setBounds(gx + gLabelW + 4, gy, gControlW - 30, 22);
     
-    gx += gLabelW + gControlW + 20;
-    
-    // Import/Export buttons (right side of global panel)
-    importBtn.setBounds(getWidth() - 180, globalY + 8, 80, 26);
-    exportBtn.setBounds(getWidth() - 90, globalY + 8, 80, 26);
+    // Import/Export buttons (right side of global panel, row 2)
+    importBtn.setBounds(getWidth() - 180, gy, 80, 22);
+    exportBtn.setBounds(getWidth() - 90, gy, 80, 22);
 
     // Operator columns
     const int opAreaY = kTitleH + kMargin + kGlobalH + kMargin;
@@ -408,19 +393,13 @@ void SquareWaveSynthAudioProcessorEditor::resized()
         ops[op].amRow.toggle.setBounds(sliderX, y + 4, 24, 24);
         y += kToggleH;
         
-        // SSG-EG Enable
-        ops[op].ssgEnRow.label.setText("SSG-EG", juce::dontSendNotification);
-        ops[op].ssgEnRow.label.setBounds(cx + 2, y, labelW, kToggleH);
-        ops[op].ssgEnRow.toggle.setBounds(sliderX, y + 4, 24, 24);
-        y += kToggleH;
-        
-        // SSG-EG Mode
+        // SSG-EG Mode (includes Off option)
         ops[op].ssgModeRow.label.setBounds(cx + 2, y, labelW, kComboH);
         ops[op].ssgModeRow.box.setBounds(sliderX, y + 2, sliderW, 24);
     }
 
     // MIDI keyboard
-    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kToggleH + kComboH + kPad * 2;
+    const int opAreaH = kHeaderH + kEnvH + NUM_SLIDERS * kSliderH + kSliderH + kToggleH + kComboH + kPad * 2;
     const int kbY = kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin;
     midiKeyboard.setBounds(0, kbY, getWidth(), kKeyboardH);
 }
