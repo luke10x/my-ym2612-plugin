@@ -73,8 +73,8 @@ void SquareWaveSynthAudioProcessorEditor::setupGlobalControls()
     globalAlgo.cbAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         audioProcessor.apvts, GLOBAL_ALGORITHM, algorithmBox);
     globalAlgo.label.setText("Algorithm", juce::dontSendNotification);
-    globalAlgo.label.setJustificationType(juce::Justification::centredRight);
-    globalAlgo.label.setFont(juce::Font(11.0f));
+    globalAlgo.label.setJustificationType(juce::Justification::centredLeft);
+    globalAlgo.label.setFont(juce::Font(10.0f));
     globalAlgo.label.setColour(juce::Label::textColourId, dim);
     addAndMakeVisible(globalAlgo.label);
     addAndMakeVisible(algorithmBox);
@@ -99,8 +99,8 @@ void SquareWaveSynthAudioProcessorEditor::setupGlobalControls()
     globalLfoFreq.cbAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         audioProcessor.apvts, GLOBAL_LFO_FREQ, lfoFreqBox);
     globalLfoFreq.label.setText("LFO", juce::dontSendNotification);
-    globalLfoFreq.label.setJustificationType(juce::Justification::centredRight);
-    globalLfoFreq.label.setFont(juce::Font(11.0f));
+    globalLfoFreq.label.setJustificationType(juce::Justification::centredLeft);
+    globalLfoFreq.label.setFont(juce::Font(10.0f));
     globalLfoFreq.label.setColour(juce::Label::textColourId, dim);
     addAndMakeVisible(globalLfoFreq.label);
     addAndMakeVisible(lfoFreqBox);
@@ -234,9 +234,9 @@ void SquareWaveSynthAudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
     // SSG-EG Mode dropdown (includes Off option now)
     col.ssgModeRow.box.addItemList(getSsgModeNames(), 1);
     col.ssgModeRow.label.setText("SSG-EG", juce::dontSendNotification);
-    col.ssgModeRow.label.setFont(juce::Font(10.5f));
+    col.ssgModeRow.label.setFont(juce::Font(9.5f));
     col.ssgModeRow.label.setColour(juce::Label::textColourId, dim);
-    col.ssgModeRow.label.setJustificationType(juce::Justification::centredRight);
+    col.ssgModeRow.label.setJustificationType(juce::Justification::centredLeft);
     addAndMakeVisible(col.ssgModeRow.label);
     addAndMakeVisible(col.ssgModeRow.box);
     col.ssgModeRow.att = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
@@ -344,45 +344,46 @@ void SquareWaveSynthAudioProcessorEditor::resized()
     const int colW = (getWidth() - kMargin) / 4;
     const int gRowH = 28;
     const int gPad = 4;
+    const int gLabelH = 14;
     
     // Row 1: Algorithm | Feedback | Octave | Import
     int row1Y = globalY + 6;
     
-    // Col 0: Algorithm
-    algorithmBox.setBounds(static_cast<int>(kMargin * 0.5f) + gPad, row1Y, colW - gPad * 2, gRowH);
-    globalAlgo.label.setBounds(0, 0, 0, 0);  // Hide label, dropdown is self-explanatory
+    // Col 0: Algorithm (label above)
+    globalAlgo.label.setBounds(static_cast<int>(kMargin * 0.5f) + gPad, row1Y, colW - gPad * 2, gLabelH);
+    algorithmBox.setBounds(static_cast<int>(kMargin * 0.5f) + gPad, row1Y + gLabelH + 2, colW - gPad * 2, gRowH);
     
     // Col 1: Feedback
     int col1X = static_cast<int>(kMargin * 0.5f) + colW;
-    globalFb.label.setBounds(col1X + gPad, row1Y, 50, gRowH);
-    feedbackSlider.setBounds(col1X + 50 + gPad * 2, row1Y, colW - 50 - gPad * 3, gRowH);
+    globalFb.label.setBounds(col1X + gPad, row1Y + gLabelH + 2 + 6, 50, gRowH - 12);
+    feedbackSlider.setBounds(col1X + 50 + gPad * 2, row1Y + gLabelH + 2, colW - 50 - gPad * 3, gRowH);
     
     // Col 2: Octave
     int col2X = static_cast<int>(kMargin * 0.5f) + colW * 2;
-    globalOct.label.setBounds(col2X + gPad, row1Y, 50, gRowH);
-    octaveSlider.setBounds(col2X + 50 + gPad * 2, row1Y, colW - 50 - gPad * 3, gRowH);
+    globalOct.label.setBounds(col2X + gPad, row1Y + gLabelH + 2 + 6, 50, gRowH - 12);
+    octaveSlider.setBounds(col2X + 50 + gPad * 2, row1Y + gLabelH + 2, colW - 50 - gPad * 3, gRowH);
     
     // Col 3: Import button
     int col3X = static_cast<int>(kMargin * 0.5f) + colW * 3;
-    importBtn.setBounds(col3X + gPad, row1Y, colW - gPad * 2, gRowH);
+    importBtn.setBounds(col3X + gPad, row1Y + gLabelH + 2, colW - gPad * 2, gRowH);
     
     // Row 2: LFO | AMS | FMS | Export
-    int row2Y = row1Y + gRowH + 6;
+    int row2Y = row1Y + gLabelH + 2 + gRowH + 8;
     
-    // Col 0: LFO
-    lfoFreqBox.setBounds(static_cast<int>(kMargin * 0.5f) + gPad, row2Y, colW - gPad * 2, gRowH);
-    globalLfoFreq.label.setBounds(0, 0, 0, 0);  // Hide label
+    // Col 0: LFO (label above)
+    globalLfoFreq.label.setBounds(static_cast<int>(kMargin * 0.5f) + gPad, row2Y, colW - gPad * 2, gLabelH);
+    lfoFreqBox.setBounds(static_cast<int>(kMargin * 0.5f) + gPad, row2Y + gLabelH + 2, colW - gPad * 2, gRowH);
     
     // Col 1: AMS
-    globalAms.label.setBounds(col1X + gPad, row2Y, 50, gRowH);
-    amsSlider.setBounds(col1X + 50 + gPad * 2, row2Y, colW - 50 - gPad * 3, gRowH);
+    globalAms.label.setBounds(col1X + gPad, row2Y + gLabelH + 2 + 6, 50, gRowH - 12);
+    amsSlider.setBounds(col1X + 50 + gPad * 2, row2Y + gLabelH + 2, colW - 50 - gPad * 3, gRowH);
     
     // Col 2: FMS
-    globalFms.label.setBounds(col2X + gPad, row2Y, 50, gRowH);
-    fmsSlider.setBounds(col2X + 50 + gPad * 2, row2Y, colW - 50 - gPad * 3, gRowH);
+    globalFms.label.setBounds(col2X + gPad, row2Y + gLabelH + 2 + 6, 50, gRowH - 12);
+    fmsSlider.setBounds(col2X + 50 + gPad * 2, row2Y + gLabelH + 2, colW - 50 - gPad * 3, gRowH);
     
     // Col 3: Export button
-    exportBtn.setBounds(col3X + gPad, row2Y, colW - gPad * 2, gRowH);
+    exportBtn.setBounds(col3X + gPad, row2Y + gLabelH + 2, colW - gPad * 2, gRowH);
 
     // Operator columns - new layout:
     // Header (name + role)
@@ -416,9 +417,9 @@ void SquareWaveSynthAudioProcessorEditor::resized()
         ops[op].envDisplay.setBounds(cx + 4, y, colW - 8, kEnvH); 
         y += kEnvH;
 
-        // SSG-EG dropdown (right below envelope)
-        ops[op].ssgModeRow.label.setBounds(cx + 2, y + 2, labelW, kComboH - 4);
-        ops[op].ssgModeRow.box.setBounds(sliderX, y + 2, sliderW, kComboH - 4);
+        // SSG-EG dropdown (right below envelope) with label above
+        ops[op].ssgModeRow.label.setBounds(cx + 2, y, labelW, 12);
+        ops[op].ssgModeRow.box.setBounds(cx + 2, y + 14, colW - 6, kComboH - 14);
         y += kComboH;
 
         // Envelope parameter sliders: AR, DR, SL, SR, RR (indices 1-5)

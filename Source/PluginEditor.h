@@ -173,12 +173,12 @@ private:
     void setupGlobalControls();
 
     static constexpr int kTitleH    = 46;
-    static constexpr int kGlobalH   = 70;
+    static constexpr int kGlobalH   = 98;   // Increased for label rows above dropdowns
     static constexpr int kHeaderH   = 36;
     static constexpr int kEnvH      = 60;
     static constexpr int kSliderH   = 44;
     static constexpr int kToggleH   = 30;
-    static constexpr int kComboH    = 30;    // SSG mode dropdown
+    static constexpr int kComboH    = 36;   // Increased for label above SSG dropdown
     static constexpr int kKeyboardH = 80;
     static constexpr int kMargin    = 8;
     static constexpr int kPad       = 6;
