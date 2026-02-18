@@ -67,6 +67,19 @@ SquareWaveSynthAudioProcessorEditor::~SquareWaveSynthAudioProcessorEditor()
 // ─────────────────────────────────────────────────────────────────────────────
 void SquareWaveSynthAudioProcessorEditor::setupGlobalControls()
 {
+    // Instrument name label (editable)
+    instrumentNameLabel.setText(audioProcessor.getInstrumentName(), juce::dontSendNotification);
+    instrumentNameLabel.setFont(juce::Font(13.0f, juce::Font::bold));
+    instrumentNameLabel.setColour(juce::Label::textColourId, text);
+    instrumentNameLabel.setColour(juce::Label::backgroundColourId, panel.darker(0.3f));
+    instrumentNameLabel.setColour(juce::Label::outlineColourId, border);
+    instrumentNameLabel.setJustificationType(juce::Justification::centred);
+    instrumentNameLabel.setEditable(true);
+    instrumentNameLabel.onTextChange = [this]() {
+        audioProcessor.setInstrumentName(instrumentNameLabel.getText());
+    };
+    addAndMakeVisible(instrumentNameLabel);
+
     // Algorithm
     algorithmBox.addItemList(getAlgorithmNames(), 1);
     globalAlgo.control = &algorithmBox;
@@ -157,14 +170,17 @@ void SquareWaveSynthAudioProcessorEditor::setupGlobalControls()
         chooser->launchAsync(flags, [this, chooser](const juce::FileChooser& fc) {
             auto file = fc.getResult();
             if (file.existsAsFile()) {
-                if (audioProcessor.importFurnaceInstrument(file))
+                if (audioProcessor.importFurnaceInstrument(file)) {
+                    // Update the instrument name label
+                    instrumentNameLabel.setText(audioProcessor.getInstrumentName(), juce::dontSendNotification);
                     juce::AlertWindow::showMessageBoxAsync(
                         juce::AlertWindow::InfoIcon, "Import Successful",
-                        "Loaded: " + file.getFileNameWithoutExtension());
-                else
+                        "Loaded instrument from " + file.getFileName());
+                } else {
                     juce::AlertWindow::showMessageBoxAsync(
                         juce::AlertWindow::WarningIcon, "Import Failed",
                         "Could not load Furnace instrument file.");
+                }
             }
         });
     };
@@ -182,7 +198,9 @@ void SquareWaveSynthAudioProcessorEditor::setupGlobalControls()
             if (file != juce::File()) {
                 if (!file.hasFileExtension(".fui"))
                     file = file.withFileExtension(".fui");
-                if (audioProcessor.exportFurnaceInstrument(file, file.getFileNameWithoutExtension()))
+                // Use current instrument name
+                juce::String name = audioProcessor.getInstrumentName();
+                if (audioProcessor.exportFurnaceInstrument(file, name))
                     juce::AlertWindow::showMessageBoxAsync(
                         juce::AlertWindow::InfoIcon, "Export Successful",
                         "Saved: " + file.getFileName());
@@ -298,7 +316,7 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
     g.setFont(juce::Font(19.0f, juce::Font::bold));
     g.drawText("YM2612 Synth", titleR.withTrimmedBottom(14.0f), juce::Justification::centred, false);
     g.setColour(dim); g.setFont(juce::Font(10.0f));
-    g.drawText("FM Synthesis  \xc2\xb7  6 Voices", titleR.withTrimmedTop(26.0f), juce::Justification::centred, false);
+    g.drawText("FM Synthesis  ·  6 Voices", titleR.withTrimmedTop(26.0f), juce::Justification::centred, false);
 
     // Global panel background
     const int globalY = kTitleH + kMargin;
@@ -340,6 +358,9 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
 // ─────────────────────────────────────────────────────────────────────────────
 void SquareWaveSynthAudioProcessorEditor::resized()
 {
+    // Instrument name label in title bar
+    instrumentNameLabel.setBounds(getWidth() / 4, 4, getWidth() / 2, 20);
+
     // Global panel - 2 rows × 4 columns matching operator widths
     const int globalY = kTitleH + kMargin;
     const int colW = (getWidth() - kMargin) / 4;

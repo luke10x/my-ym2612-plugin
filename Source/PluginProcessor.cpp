@@ -113,6 +113,16 @@ void SquareWaveSynthAudioProcessor::releaseResources()
     midiKeyboardState.reset();
 }
 
+void SquareWaveSynthAudioProcessor::setInstrumentName(const juce::String& name)
+{
+    instrumentName = name;
+}
+
+juce::String SquareWaveSynthAudioProcessor::getInstrumentName() const
+{
+    return instrumentName;
+}
+
 #ifndef JucePlugin_PreferredChannelConfigurations
 bool SquareWaveSynthAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
@@ -195,6 +205,8 @@ juce::AudioProcessorEditor* SquareWaveSynthAudioProcessor::createEditor()
 void SquareWaveSynthAudioProcessor::getStateInformation(juce::MemoryBlock& dest)
 {
     auto state = apvts.copyState();
+    // Add instrument name to state
+    state.setProperty("instrumentName", instrumentName, nullptr);
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, dest);
 }
@@ -202,8 +214,12 @@ void SquareWaveSynthAudioProcessor::getStateInformation(juce::MemoryBlock& dest)
 void SquareWaveSynthAudioProcessor::setStateInformation(const void* data, int size)
 {
     std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, size));
-    if (xml && xml->hasTagName(apvts.state.getType()))
-        apvts.replaceState(juce::ValueTree::fromXml(*xml));
+    if (xml && xml->hasTagName(apvts.state.getType())) {
+        auto state = juce::ValueTree::fromXml(*xml);
+        apvts.replaceState(state);
+        // Restore instrument name
+        instrumentName = state.getProperty("instrumentName", "YM2612 Instrument").toString();
+    }
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
@@ -235,6 +251,9 @@ bool SquareWaveSynthAudioProcessor::importFurnaceInstrument(const juce::File& fi
     FurnaceFormat::Instrument ins;
     if (!FurnaceFormat::readFui(file, ins))
         return false;
+
+    // Set instrument name
+    setInstrumentName(ins.name.isEmpty() ? file.getFileNameWithoutExtension() : ins.name);
 
     auto set = [&](const juce::String& id, float rawValue) {
         if (auto* p = apvts.getParameter(id))
@@ -303,7 +322,10 @@ bool SquareWaveSynthAudioProcessor::exportFurnaceInstrument(
     };
 
     FurnaceFormat::Instrument ins;
-    ins.name       = patchName;
+    // Use stored instrument name, fallback to provided name, fallback to filename
+    ins.name = instrumentName.isEmpty() ? 
+               (patchName.isEmpty() ? file.getFileNameWithoutExtension() : patchName) :
+               instrumentName;
     ins.alg        = uint8_t(gi(GLOBAL_ALGORITHM) & 7);
     ins.fb         = uint8_t(gi(GLOBAL_FEEDBACK)  & 7);
     ins.fms        = uint8_t(gi(GLOBAL_FMS)       & 7);

@@ -122,6 +122,7 @@ private:
     juce::ComboBox algorithmBox, lfoFreqBox;
     juce::Slider   feedbackSlider, amsSlider, fmsSlider, octaveSlider;
     juce::TextButton importBtn, exportBtn;
+    juce::Label instrumentNameLabel;
 
     LabeledControl globalAlgo, globalFb, globalLfoEn, globalLfoFreq,
                    globalAms, globalFms, globalOct;

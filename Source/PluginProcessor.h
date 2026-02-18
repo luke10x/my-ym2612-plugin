@@ -106,6 +106,10 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
     juce::MidiKeyboardState& getMidiKeyboardState() { return midiKeyboardState; }
+    
+    // Instrument name (not automated, stored in state)
+    void setInstrumentName(const juce::String& name);
+    juce::String getInstrumentName() const;
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -113,6 +117,7 @@ private:
     juce::Synthesiser synth;
     juce::MidiKeyboardState midiKeyboardState;
     std::array<Ym2612Voice*, NUM_VOICES> voices {};
+    juce::String instrumentName { "YM2612 Instrument" };
 
     void pushParamsToVoices();
 
