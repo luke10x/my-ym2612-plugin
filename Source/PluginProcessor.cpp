@@ -155,14 +155,8 @@ void SquareWaveSynthAudioProcessor::pushParamsToVoices()
         ops[op].mul = static_cast<int>(apvts.getRawParameterValue(OP_MUL_ID[op])->load());
 
         int uiDT = static_cast<int>(apvts.getRawParameterValue(OP_DT_ID[op])->load());
-        // UI(-3..+3) → chip(0-7): negative → 1-3, positive → 5-7, zero → 0
-        if (uiDT == 0) {
-            ops[op].dt = 0;
-        } else if (uiDT < 0) {
-            ops[op].dt = -uiDT;  // -1→1, -2→2, -3→3
-        } else {
-            ops[op].dt = 4 + uiDT;  // +1→5, +2→6, +3→7
-        }
+        // UI(-3..+3) → chip(0-7): chipValue = displayValue + 3
+        ops[op].dt = (uiDT + 3) & 7;
 
         ops[op].rs  = static_cast<int>(apvts.getRawParameterValue(OP_RS_ID[op])->load());
         ops[op].am  = apvts.getRawParameterValue(OP_AM_ID[op])->load() > 0.5f ? 1 : 0;
@@ -279,18 +273,12 @@ bool SquareWaveSynthAudioProcessor::importFurnaceInstrument(const juce::File& fi
         set(OP_RS_ID[uiOp],  float(fop.rs));
 
         // dt chip(0-7) → UI(-3..+3)
-        // Furnace stores: 0-3=positive(0,+1,+2,+3), 4=zero, 5-7=negative(-1,-2,-3)
-        // But the actual chip effect is reversed: low values = negative, high values = positive
-        // So we need to flip: chip 0-3 → UI negative, chip 5-7 → UI positive
+        // Furnace displays detune as: displayValue = chipValue - 3
+        // So: chip 0→display -3, chip 3→display 0, chip 5→display +2, chip 7→display +4 (capped at +3)
         int chipDT = int(fop.dt) & 7;
-        int uiDT;
-        if (chipDT == 0 || chipDT == 4) {
-            uiDT = 0;
-        } else if (chipDT <= 3) {
-            uiDT = -chipDT;  // 1→-1, 2→-2, 3→-3
-        } else {
-            uiDT = chipDT - 4;  // 5→+1, 6→+2, 7→+3
-        }
+        int uiDT = chipDT - 3;
+        if (uiDT > 3) uiDT = 3;   // Clamp to valid range
+        if (uiDT < -3) uiDT = -3;
         set(OP_DT_ID[uiOp], float(uiDT));
 
         set(OP_AM_ID[uiOp], fop.am != 0 ? 1.0f : 0.0f);
@@ -350,15 +338,9 @@ bool SquareWaveSynthAudioProcessor::exportFurnaceInstrument(
         fop.am   = uint8_t(gi(OP_AM_ID[uiOp]));
 
         // dt: UI(-3..+3) → chip(0-7)
-        // UI negative → chip 1-3, UI positive → chip 5-7, UI zero → chip 0
+        // Furnace: chipValue = displayValue + 3
         int uiDT = gi(OP_DT_ID[uiOp]);
-        if (uiDT == 0) {
-            fop.dt = 0;
-        } else if (uiDT < 0) {
-            fop.dt = uint8_t(-uiDT);  // -1→1, -2→2, -3→3
-        } else {
-            fop.dt = uint8_t(4 + uiDT);  // +1→5, +2→6, +3→7
-        }
+        fop.dt = uint8_t((uiDT + 3) & 7);  // Clamp to 0-7
 
         // SSG-EG: dropdown index 0=Off, 1-8=modes 0-7 → Furnace ssgEnv
         int dropdownIdx = gi(OP_SSG_MODE_ID[uiOp]);
