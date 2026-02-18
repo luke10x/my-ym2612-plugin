@@ -252,8 +252,17 @@ bool SquareWaveSynthAudioProcessor::importFurnaceInstrument(const juce::File& fi
     if (!FurnaceFormat::readFui(file, ins))
         return false;
 
-    // Set instrument name
-    setInstrumentName(ins.name.isEmpty() ? file.getFileNameWithoutExtension() : ins.name);
+    // Debug logging
+    DBG("=== IMPORT DEBUG ===");
+    DBG("File name: " << file.getFileName());
+    DBG("File name without extension: " << file.getFileNameWithoutExtension());
+    DBG("Instrument name from file: '" << ins.name << "'");
+    DBG("Instrument name is empty: " << (ins.name.isEmpty() ? "YES" : "NO"));
+    
+    // Set instrument name - prefer name from file, fallback to filename
+    juce::String nameToUse = ins.name.isEmpty() ? file.getFileNameWithoutExtension() : ins.name;
+    DBG("Name being set: '" << nameToUse << "'");
+    setInstrumentName(nameToUse);
 
     auto set = [&](const juce::String& id, float rawValue) {
         if (auto* p = apvts.getParameter(id))
@@ -326,6 +335,15 @@ bool SquareWaveSynthAudioProcessor::exportFurnaceInstrument(
     ins.name = instrumentName.isEmpty() ? 
                (patchName.isEmpty() ? file.getFileNameWithoutExtension() : patchName) :
                instrumentName;
+    
+    // Debug logging
+    DBG("=== EXPORT DEBUG ===");
+    DBG("File name: " << file.getFileName());
+    DBG("File name without extension: " << file.getFileNameWithoutExtension());
+    DBG("instrumentName member: '" << instrumentName << "'");
+    DBG("patchName parameter: '" << patchName << "'");
+    DBG("Name being written to file: '" << ins.name << "'");
+    
     ins.alg        = uint8_t(gi(GLOBAL_ALGORITHM) & 7);
     ins.fb         = uint8_t(gi(GLOBAL_FEEDBACK)  & 7);
     ins.fms        = uint8_t(gi(GLOBAL_FMS)       & 7);

@@ -172,7 +172,11 @@ void SquareWaveSynthAudioProcessorEditor::setupGlobalControls()
             if (file.existsAsFile()) {
                 if (audioProcessor.importFurnaceInstrument(file)) {
                     // Update the instrument name label
-                    instrumentNameLabel.setText(audioProcessor.getInstrumentName(), juce::dontSendNotification);
+                    juce::String newName = audioProcessor.getInstrumentName();
+                    DBG("=== UI UPDATE ===");
+                    DBG("Name retrieved from processor: '" << newName << "'");
+                    instrumentNameLabel.setText(newName, juce::dontSendNotification);
+                    DBG("Label text after update: '" << instrumentNameLabel.getText() << "'");
                     juce::AlertWindow::showMessageBoxAsync(
                         juce::AlertWindow::InfoIcon, "Import Successful",
                         "Loaded instrument from " + file.getFileName());
