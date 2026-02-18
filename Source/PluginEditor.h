@@ -167,7 +167,7 @@ private:
     }
 
     void setupSlider(SliderRow& row, const juce::String& paramId,
-                     int minVal, int maxVal, juce::Colour colour, bool inverted = false);
+                     int minVal, int maxVal, juce::Colour colour);
     void setupToggle(ToggleRow& row, const juce::String& paramId, juce::Colour colour);
     void styleColumn(OpColumn& col, int opIdx);
     void setupGlobalControls();

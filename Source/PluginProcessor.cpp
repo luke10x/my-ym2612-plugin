@@ -12,8 +12,8 @@ SquareWaveSynthAudioProcessor::createParameterLayout()
 
     // Defaults for Algo 4: (1→2)+(3→4), feedback 5
     // TL: 0=loud, 127=silent (Furnace convention)
-    // Modulators (OP1, OP3) should be loud, carriers (OP2, OP4) can be attenuated
-    const int defaultTL[4]  = { 0, 63, 0, 63   };  // Furnace values directly
+    // Modulators (OP1, OP3) should be loud (low values)
+    const int defaultTL[4]  = { 0, 63, 0, 63 };
     const int defaultAR[4]  = { 31, 31, 31, 31  };
     const int defaultDR[4]  = {  5,  5,  5,  5  };
     const int defaultSR[4]  = {  0,  0,  0,  0  };
@@ -144,7 +144,7 @@ void SquareWaveSynthAudioProcessor::pushParamsToVoices()
     // Read per-operator params
     Ym2612Voice::OpParams ops[4];
     for (int op = 0; op < 4; op++) {
-        // TL: Use directly as shown in UI (0=loud, 127=silent)
+        // TL: Use directly from parameter (0=loud, 127=silent)
         ops[op].tl  = static_cast<int>(apvts.getRawParameterValue(OP_TL_ID[op])->load());
 
         ops[op].ar  = static_cast<int>(apvts.getRawParameterValue(OP_AR_ID[op])->load());
@@ -262,7 +262,7 @@ bool SquareWaveSynthAudioProcessor::importFurnaceInstrument(const juce::File& fi
         int furnaceSlot = slotMap[uiOp];
         const auto& fop = ins.op[furnaceSlot];
 
-        // tl: Keep same as Furnace (0=loud, 127=silent) - no inversion needed
+        // tl: Keep same as Furnace (0=loud, 127=silent) - no inversion
         set(OP_TL_ID[uiOp],  float(fop.tl));
         set(OP_AR_ID[uiOp],  float(fop.ar));
         set(OP_DR_ID[uiOp],  float(fop.dr));
@@ -325,7 +325,7 @@ bool SquareWaveSynthAudioProcessor::exportFurnaceInstrument(
         FurnaceFormat::Op& fop = ins.op[furnaceSlot];
         fop.enable = true;
 
-        // tl: Write directly as shown in UI (0=loud, 127=silent, same as Furnace)
+        // tl: Write directly as stored in parameter (0=loud, 127=silent)
         fop.tl   = uint8_t(gi(OP_TL_ID[uiOp]));
 
         fop.ar   = uint8_t(gi(OP_AR_ID[uiOp]));

@@ -223,12 +223,11 @@ void SquareWaveSynthAudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
     addAndMakeVisible(col.envDisplay);
 
     for (int s = 0; s < NUM_SLIDERS; s++) {
-        bool invertSlider = (s == 0);  // Invert TL (Level) slider: 0=loud on right, 127=silent on left
-        setupSlider(col.rows[s], PARAM_IDS[s][opIdx], PARAM_MIN[s], PARAM_MAX[s], colAccent, invertSlider);
+        setupSlider(col.rows[s], PARAM_IDS[s][opIdx], PARAM_MIN[s], PARAM_MAX[s], colAccent);
     }
 
     // Rate Scale
-    setupSlider(col.rsRow, OP_RS_ID[opIdx], 0, 3, colAccent, false);
+    setupSlider(col.rsRow, OP_RS_ID[opIdx], 0, 3, colAccent);
 
     // AM Enable
     setupToggle(col.amRow, OP_AM_ID[opIdx], colAccent);
@@ -246,27 +245,12 @@ void SquareWaveSynthAudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
 }
 
 void SquareWaveSynthAudioProcessorEditor::setupSlider(SliderRow& row, const juce::String& paramId,
-                                                       int minVal, int maxVal, juce::Colour colour, bool inverted)
+                                                       int minVal, int maxVal, juce::Colour colour)
 {
     auto& sl = row.slider;
     sl.setSliderStyle(juce::Slider::LinearHorizontal);
     sl.setTextBoxStyle(juce::Slider::TextBoxRight, false, 34, 18);
     sl.setRange(static_cast<double>(minVal), static_cast<double>(maxVal), 1.0);
-    
-    if (inverted) {
-        // For TL slider: keep slider normal (0=left, 127=right)
-        // But invert the text display: when internal=0, show 127; when internal=127, show 0
-        // This way: slider right (127 internal) shows "0" (loud), slider left (0 internal) shows "127" (silent)
-        sl.textFromValueFunction = [maxVal](double value) {
-            int displayValue = maxVal - static_cast<int>(value);
-            return juce::String(displayValue);
-        };
-        sl.valueFromTextFunction = [maxVal](const juce::String& text) {
-            int displayValue = text.getIntValue();
-            return static_cast<double>(maxVal - displayValue);
-        };
-    }
-    
     sl.setColour(juce::Slider::trackColourId, colour.withAlpha(0.55f));
     sl.setColour(juce::Slider::thumbColourId, colour);
     sl.setColour(juce::Slider::backgroundColourId, panel.brighter(0.08f));
