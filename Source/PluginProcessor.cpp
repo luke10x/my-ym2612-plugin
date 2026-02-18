@@ -10,8 +10,10 @@ SquareWaveSynthAudioProcessor::createParameterLayout()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    // Defaults for Algo 4: (1→2)+(3→4), feedback 5, modulators half-open
-    const int defaultTL[4]  = { 63, 0, 63, 0   };
+    // Defaults for Algo 4: (1→2)+(3→4), feedback 5
+    // TL: 0=loud, 127=silent (Furnace convention)
+    // Modulators (OP1, OP3) should be loud, carriers (OP2, OP4) can be attenuated
+    const int defaultTL[4]  = { 0, 63, 0, 63   };  // Furnace values directly
     const int defaultAR[4]  = { 31, 31, 31, 31  };
     const int defaultDR[4]  = {  5,  5,  5,  5  };
     const int defaultSR[4]  = {  0,  0,  0,  0  };
@@ -29,7 +31,7 @@ SquareWaveSynthAudioProcessor::createParameterLayout()
         juce::String pre = "OP" + juce::String(op + 1) + " ";
 
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            juce::ParameterID{OP_TL_ID[op], 1}, pre + "Level", 0, 127, 127 - defaultTL[op]));
+            juce::ParameterID{OP_TL_ID[op], 1}, pre + "Level", 0, 127, defaultTL[op]));
         params.push_back(std::make_unique<juce::AudioParameterInt>(
             juce::ParameterID{OP_AR_ID[op], 1}, pre + "Attack",  0, 31, defaultAR[op]));
         params.push_back(std::make_unique<juce::AudioParameterInt>(
@@ -142,8 +144,8 @@ void SquareWaveSynthAudioProcessor::pushParamsToVoices()
     // Read per-operator params
     Ym2612Voice::OpParams ops[4];
     for (int op = 0; op < 4; op++) {
-        int uiLevel = static_cast<int>(apvts.getRawParameterValue(OP_TL_ID[op])->load());
-        ops[op].tl  = 127 - uiLevel;
+        // TL: Use directly as shown in UI (0=loud, 127=silent)
+        ops[op].tl  = static_cast<int>(apvts.getRawParameterValue(OP_TL_ID[op])->load());
 
         ops[op].ar  = static_cast<int>(apvts.getRawParameterValue(OP_AR_ID[op])->load());
         ops[op].dr  = static_cast<int>(apvts.getRawParameterValue(OP_DR_ID[op])->load());
@@ -153,7 +155,14 @@ void SquareWaveSynthAudioProcessor::pushParamsToVoices()
         ops[op].mul = static_cast<int>(apvts.getRawParameterValue(OP_MUL_ID[op])->load());
 
         int uiDT = static_cast<int>(apvts.getRawParameterValue(OP_DT_ID[op])->load());
-        ops[op].dt = (uiDT < 0) ? (4 - uiDT) : uiDT;
+        // UI(-3..+3) → chip(0-7): negative → 1-3, positive → 5-7, zero → 0
+        if (uiDT == 0) {
+            ops[op].dt = 0;
+        } else if (uiDT < 0) {
+            ops[op].dt = -uiDT;  // -1→1, -2→2, -3→3
+        } else {
+            ops[op].dt = 4 + uiDT;  // +1→5, +2→6, +3→7
+        }
 
         ops[op].rs  = static_cast<int>(apvts.getRawParameterValue(OP_RS_ID[op])->load());
         ops[op].am  = apvts.getRawParameterValue(OP_AM_ID[op])->load() > 0.5f ? 1 : 0;
@@ -248,35 +257,50 @@ bool SquareWaveSynthAudioProcessor::importFurnaceInstrument(const juce::File& fi
     // For now, assume LFO is disabled on import. User can enable via dropdown.
     set(GLOBAL_LFO_FREQ, 0.0f);  // index 0 = Off
 
+    // YM2612 operator slot mapping:
+    // Furnace stores in slot order: [0]=OP1, [1]=OP3, [2]=OP2, [3]=OP4
+    // Our UI displays in order: OP1, OP2, OP3, OP4
+    // So we need to remap: Furnace[0]→UI[0], Furnace[2]→UI[1], Furnace[1]→UI[2], Furnace[3]→UI[3]
+    const int slotMap[4] = { 0, 2, 1, 3 };  // Map UI op index to Furnace slot index
+
     // Per-operator
-    for (int op = 0; op < 4; op++) {
-        const auto& fop = ins.op[op];
+    for (int uiOp = 0; uiOp < 4; uiOp++) {
+        int furnaceSlot = slotMap[uiOp];
+        const auto& fop = ins.op[furnaceSlot];
 
-        // tl: Furnace 0=loud,127=silent vs our UI 0=silent,127=loud
-        set(OP_TL_ID[op],  float(127 - int(fop.tl)));
-        set(OP_AR_ID[op],  float(fop.ar));
-        set(OP_DR_ID[op],  float(fop.dr));
-        set(OP_SR_ID[op],  float(fop.d2r));   // d2r = sustain rate
-        set(OP_SL_ID[op],  float(fop.sl));
-        set(OP_RR_ID[op],  float(fop.rr));
-        set(OP_MUL_ID[op], float(fop.mult));
-        set(OP_RS_ID[op],  float(fop.rs));
+        // tl: Keep same as Furnace (0=loud, 127=silent) - no inversion needed
+        set(OP_TL_ID[uiOp],  float(fop.tl));
+        set(OP_AR_ID[uiOp],  float(fop.ar));
+        set(OP_DR_ID[uiOp],  float(fop.dr));
+        set(OP_SR_ID[uiOp],  float(fop.d2r));   // d2r = sustain rate
+        set(OP_SL_ID[uiOp],  float(fop.sl));
+        set(OP_RR_ID[uiOp],  float(fop.rr));
+        set(OP_MUL_ID[uiOp], float(fop.mult));
+        set(OP_RS_ID[uiOp],  float(fop.rs));
 
-        // dt chip(0-7) → UI(-3..+3): 0=0, 1-3=+1..+3, 4=0, 5-7=-1..-3
+        // dt chip(0-7) → UI(-3..+3)
+        // Furnace stores: 0-3=positive(0,+1,+2,+3), 4=zero, 5-7=negative(-1,-2,-3)
+        // But the actual chip effect is reversed: low values = negative, high values = positive
+        // So we need to flip: chip 0-3 → UI negative, chip 5-7 → UI positive
         int chipDT = int(fop.dt) & 7;
-        int uiDT   = (chipDT == 0 || chipDT == 4) ? 0
-                   : (chipDT <= 3)                 ? chipDT
-                   :                                 -(chipDT - 4);
-        set(OP_DT_ID[op], float(uiDT));
+        int uiDT;
+        if (chipDT == 0 || chipDT == 4) {
+            uiDT = 0;
+        } else if (chipDT <= 3) {
+            uiDT = -chipDT;  // 1→-1, 2→-2, 3→-3
+        } else {
+            uiDT = chipDT - 4;  // 5→+1, 6→+2, 7→+3
+        }
+        set(OP_DT_ID[uiOp], float(uiDT));
 
-        set(OP_AM_ID[op], fop.am != 0 ? 1.0f : 0.0f);
+        set(OP_AM_ID[uiOp], fop.am != 0 ? 1.0f : 0.0f);
         
         // SSG-EG: Furnace ssgEnv bit3=enable, bits2:0=mode
         // Map to dropdown: 0=Off, 1-8=modes 0-7
         bool ssgEn   = (fop.ssgEnv & 0x08) != 0;
         int ssgMode  = fop.ssgEnv & 0x07;
         int dropdownIdx = ssgEn ? (ssgMode + 1) : 0;
-        set(OP_SSG_MODE_ID[op], float(dropdownIdx));
+        set(OP_SSG_MODE_ID[uiOp], float(dropdownIdx));
     }
 
     pushParamsToVoices();
@@ -302,29 +326,42 @@ bool SquareWaveSynthAudioProcessor::exportFurnaceInstrument(
     ins.opllPreset = 0;
     ins.block      = 0;
 
-    for (int op = 0; op < 4; op++) {
-        FurnaceFormat::Op& fop = ins.op[op];
+    // YM2612 operator slot mapping (reverse of import):
+    // Our UI order: OP1, OP2, OP3, OP4 (indices 0, 1, 2, 3)
+    // Furnace slot order: OP1, OP3, OP2, OP4 (slots 0, 1, 2, 3)
+    // So we need to write: UI[0]→Furnace[0], UI[1]→Furnace[2], UI[2]→Furnace[1], UI[3]→Furnace[3]
+    const int slotMap[4] = { 0, 2, 1, 3 };  // Map UI op index to Furnace slot index
+
+    for (int uiOp = 0; uiOp < 4; uiOp++) {
+        int furnaceSlot = slotMap[uiOp];
+        FurnaceFormat::Op& fop = ins.op[furnaceSlot];
         fop.enable = true;
 
-        // tl: our UI 0=silent,127=loud → Furnace 0=loud,127=silent
-        int uiLevel = gi(OP_TL_ID[op]);
-        fop.tl   = uint8_t(127 - uiLevel);
+        // tl: Write directly as shown in UI (0=loud, 127=silent, same as Furnace)
+        fop.tl   = uint8_t(gi(OP_TL_ID[uiOp]));
 
-        fop.ar   = uint8_t(gi(OP_AR_ID[op]));
-        fop.dr   = uint8_t(gi(OP_DR_ID[op]));
-        fop.d2r  = uint8_t(gi(OP_SR_ID[op]));   // sustain rate
-        fop.sl   = uint8_t(gi(OP_SL_ID[op]));
-        fop.rr   = uint8_t(gi(OP_RR_ID[op]));
-        fop.mult = uint8_t(gi(OP_MUL_ID[op]));
-        fop.rs   = uint8_t(gi(OP_RS_ID[op]));
-        fop.am   = uint8_t(gi(OP_AM_ID[op]));
+        fop.ar   = uint8_t(gi(OP_AR_ID[uiOp]));
+        fop.dr   = uint8_t(gi(OP_DR_ID[uiOp]));
+        fop.d2r  = uint8_t(gi(OP_SR_ID[uiOp]));   // sustain rate
+        fop.sl   = uint8_t(gi(OP_SL_ID[uiOp]));
+        fop.rr   = uint8_t(gi(OP_RR_ID[uiOp]));
+        fop.mult = uint8_t(gi(OP_MUL_ID[uiOp]));
+        fop.rs   = uint8_t(gi(OP_RS_ID[uiOp]));
+        fop.am   = uint8_t(gi(OP_AM_ID[uiOp]));
 
-        // dt: UI(-3..+3) → chip(0-7): neg→(4-uiDT), pos→uiDT
-        int uiDT = gi(OP_DT_ID[op]);
-        fop.dt   = uint8_t(uiDT < 0 ? (4 - uiDT) : uiDT);
+        // dt: UI(-3..+3) → chip(0-7)
+        // UI negative → chip 1-3, UI positive → chip 5-7, UI zero → chip 0
+        int uiDT = gi(OP_DT_ID[uiOp]);
+        if (uiDT == 0) {
+            fop.dt = 0;
+        } else if (uiDT < 0) {
+            fop.dt = uint8_t(-uiDT);  // -1→1, -2→2, -3→3
+        } else {
+            fop.dt = uint8_t(4 + uiDT);  // +1→5, +2→6, +3→7
+        }
 
         // SSG-EG: dropdown index 0=Off, 1-8=modes 0-7 → Furnace ssgEnv
-        int dropdownIdx = gi(OP_SSG_MODE_ID[op]);
+        int dropdownIdx = gi(OP_SSG_MODE_ID[uiOp]);
         if (dropdownIdx == 0) {
             fop.ssgEnv = 0x00;  // disabled
         } else {
