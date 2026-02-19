@@ -281,7 +281,7 @@ public:
 
     void mouseDown(const juce::MouseEvent&) override
     {
-        // Show popup aligned to bottom-left of this component
+        // Show popup directly below this component
         auto* popup = new AlgorithmPopup(selectedAlgo);
         popup->setSize(480, 240);
         popup->onSelect = [this](int algo) {
@@ -290,14 +290,8 @@ public:
                 onChange(algo);
         };
         
-        // Position popup below and aligned to left edge
-        auto screenBounds = getScreenBounds();
-        auto popupBounds = juce::Rectangle<int>(screenBounds.getX(), 
-                                                 screenBounds.getBottom(),
-                                                 480, 240);
-        
         juce::CallOutBox::launchAsynchronously(std::unique_ptr<juce::Component>(popup),
-                                                popupBounds, nullptr);
+                                                getScreenBounds(), nullptr);
     }
 
 private:
