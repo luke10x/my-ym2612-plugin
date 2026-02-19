@@ -9,7 +9,7 @@ setlocal EnableDelayedExpansion
 
 set SCRIPT_DIR=%~dp0
 if "%SCRIPT_DIR:~-1%"=="\" set SCRIPT_DIR=%SCRIPT_DIR:~0,-1%
-set BUILD_DIR=%SCRIPT_DIR%build_win
+set BUILD_DIR=%SCRIPT_DIR%\build_win
 set BUILD_TYPE=Release
 set JUCE_DIR=
 set CLEAN=0
