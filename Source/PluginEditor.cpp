@@ -80,17 +80,14 @@ void SquareWaveSynthAudioProcessorEditor::setupGlobalControls()
     };
     addAndMakeVisible(instrumentNameLabel);
 
-    // Algorithm
-    algorithmBox.addItemList(getAlgorithmNames(), 1);
-    globalAlgo.control = &algorithmBox;
-    globalAlgo.cbAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        audioProcessor.apvts, GLOBAL_ALGORITHM, algorithmBox);
-    globalAlgo.label.setText("Algorithm", juce::dontSendNotification);
-    globalAlgo.label.setJustificationType(juce::Justification::centredLeft);
-    globalAlgo.label.setFont(juce::Font(10.0f));
-    globalAlgo.label.setColour(juce::Label::textColourId, dim);
-    addAndMakeVisible(globalAlgo.label);
-    addAndMakeVisible(algorithmBox);
+    // Algorithm selector (visual)
+    algorithmSelector.setSelectedAlgorithm(
+        static_cast<int>(audioProcessor.apvts.getRawParameterValue(GLOBAL_ALGORITHM)->load()));
+    algorithmSelector.onChange = [this](int algo) {
+        if (auto* param = audioProcessor.apvts.getParameter(GLOBAL_ALGORITHM))
+            param->setValueNotifyingHost(param->convertTo0to1(float(algo)));
+    };
+    addAndMakeVisible(algorithmSelector);
 
     // Feedback
     feedbackSlider.setSliderStyle(juce::Slider::LinearHorizontal);
@@ -338,7 +335,7 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
                            getWidth() - kMargin, static_cast<float>(opAreaH), 6.0f);
 
     // Column dividers
-    const int colW = (getWidth() - kMargin) / 4;
+    int colW = (getWidth() - kMargin) / 4;  // Local variable (not const to avoid conflict)
     g.setColour(YmColors::border);
     for (int i = 1; i < 4; i++) {
         float x = kMargin * 0.5f + i * colW;
@@ -365,52 +362,50 @@ void SquareWaveSynthAudioProcessorEditor::resized()
     // Instrument name label in title bar
     instrumentNameLabel.setBounds(getWidth() / 4, 4, getWidth() / 2, 20);
 
-    // Global panel - 2 rows × 4 columns matching operator widths
+    // Global panel - 4 columns
     const int globalY = kTitleH + kMargin;
     const int colW = (getWidth() - kMargin) / 4;
-    const int gRowH = 28;
-    const int gPad = 4;
-    const int gLabelH = 14;
+    const int pad = 8;
     
-    // Row 1: Algorithm | Feedback | Octave | Import
-    int row1Y = globalY + 6;
+    // Column 1: Algorithm + Feedback
+    int col1X = static_cast<int>(kMargin * 0.5f) + pad;
+    algorithmSelector.setBounds(col1X, globalY + 8, colW - pad * 2, 70);
     
-    // Col 0: Algorithm (label above)
-    globalAlgo.label.setBounds(static_cast<int>(kMargin * 0.5f) + gPad, row1Y, colW - gPad * 2, gLabelH);
-    algorithmBox.setBounds(static_cast<int>(kMargin * 0.5f) + gPad, row1Y + gLabelH + 2, colW - gPad * 2, gRowH);
+    globalFb.label.setBounds(col1X, globalY + 82, 60, 20);
+    globalFb.label.setFont(juce::Font(11.0f));
+    feedbackSlider.setBounds(col1X + 4, globalY + 102, colW - pad * 2 - 4, 22);
     
-    // Col 1: Feedback
-    int col1X = static_cast<int>(kMargin * 0.5f) + colW;
-    globalFb.label.setBounds(col1X + gPad, row1Y + gLabelH + 2 + 6, 50, gRowH - 12);
-    feedbackSlider.setBounds(col1X + 50 + gPad * 2, row1Y + gLabelH + 2, colW - 50 - gPad * 3, gRowH);
+    // Column 2: LFO + AMS + FMS  
+    int col2X = static_cast<int>(kMargin * 0.5f) + colW + pad;
     
-    // Col 2: Octave
-    int col2X = static_cast<int>(kMargin * 0.5f) + colW * 2;
-    globalOct.label.setBounds(col2X + gPad, row1Y + gLabelH + 2 + 6, 50, gRowH - 12);
-    octaveSlider.setBounds(col2X + 50 + gPad * 2, row1Y + gLabelH + 2, colW - 50 - gPad * 3, gRowH);
+    globalLfoFreq.label.setBounds(col2X, globalY + 8, colW - pad * 2, 14);
+    globalLfoFreq.label.setFont(juce::Font(11.0f));
+    lfoFreqBox.setBounds(col2X, globalY + 24, colW - pad * 2, 24);
     
-    // Col 3: Import button
-    int col3X = static_cast<int>(kMargin * 0.5f) + colW * 3;
-    importBtn.setBounds(col3X + gPad, row1Y + gLabelH + 2, colW - gPad * 2, gRowH);
+    globalAms.label.setBounds(col2X, globalY + 56, 40, 20);
+    globalAms.label.setFont(juce::Font(11.0f));
+    amsSlider.setBounds(col2X + 42, globalY + 56, colW - pad * 2 - 42, 22);
     
-    // Row 2: LFO | AMS | FMS | Export
-    int row2Y = row1Y + gLabelH + 2 + gRowH + 8;
+    globalFms.label.setBounds(col2X, globalY + 84, 40, 20);
+    globalFms.label.setFont(juce::Font(11.0f));
+    fmsSlider.setBounds(col2X + 42, globalY + 84, colW - pad * 2 - 42, 22);
     
-    // Col 0: LFO (label above)
-    globalLfoFreq.label.setBounds(static_cast<int>(kMargin * 0.5f) + gPad, row2Y, colW - gPad * 2, gLabelH);
-    lfoFreqBox.setBounds(static_cast<int>(kMargin * 0.5f) + gPad, row2Y + gLabelH + 2, colW - gPad * 2, gRowH);
+    // Column 3: Octave + Import + Export
+    int col3X = static_cast<int>(kMargin * 0.5f) + colW * 2 + pad;
     
-    // Col 1: AMS
-    globalAms.label.setBounds(col1X + gPad, row2Y + gLabelH + 2 + 6, 50, gRowH - 12);
-    amsSlider.setBounds(col1X + 50 + gPad * 2, row2Y + gLabelH + 2, colW - 50 - gPad * 3, gRowH);
+    globalOct.label.setBounds(col3X, globalY + 8, 60, 20);
+    globalOct.label.setFont(juce::Font(11.0f));
+    octaveSlider.setBounds(col3X + 4, globalY + 28, colW - pad * 2 - 4, 22);
     
-    // Col 2: FMS
-    globalFms.label.setBounds(col2X + gPad, row2Y + gLabelH + 2 + 6, 50, gRowH - 12);
-    fmsSlider.setBounds(col2X + 50 + gPad * 2, row2Y + gLabelH + 2, colW - 50 - gPad * 3, gRowH);
+    importBtn.setBounds(col3X, globalY + 62, colW - pad * 2, 28);
+    exportBtn.setBounds(col3X, globalY + 96, colW - pad * 2, 28);
     
-    // Col 3: Export button
-    exportBtn.setBounds(col3X + gPad, row2Y + gLabelH + 2, colW - gPad * 2, gRowH);
+    // Column 4: Empty (reserved for future use)
 
+    // Operator columns below global panel
+    const int opAreaY = kTitleH + kMargin + kGlobalH + kMargin;
+    // colW already defined above, reuse it
+    
     // Operator columns - new layout:
     // Header (name + role)
     // Level slider
@@ -420,7 +415,6 @@ void SquareWaveSynthAudioProcessorEditor::resized()
     // MUL, DT sliders
     // Rate Scale slider
     // AM Enable toggle
-    const int opAreaY = kTitleH + kMargin + kGlobalH + kMargin;
     for (int op = 0; op < 4; op++) {
         const int cx = static_cast<int>(kMargin * 0.5f) + op * colW;
         int y = opAreaY + kPad;

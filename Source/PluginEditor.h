@@ -4,6 +4,7 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
+#include "AlgorithmSelector.h"
 
 namespace YmColors {
     static const juce::Colour bg     { 0xFF0D0D1A };
@@ -119,7 +120,8 @@ private:
         std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> btnAtt;
     };
 
-    juce::ComboBox algorithmBox, lfoFreqBox;
+    AlgorithmSelector algorithmSelector;
+    juce::ComboBox lfoFreqBox;
     juce::Slider   feedbackSlider, amsSlider, fmsSlider, octaveSlider;
     juce::TextButton importBtn, exportBtn;
     juce::Label instrumentNameLabel;
@@ -174,7 +176,7 @@ private:
     void setupGlobalControls();
 
     static constexpr int kTitleH    = 46;
-    static constexpr int kGlobalH   = 98;   // Increased for label rows above dropdowns
+    static constexpr int kGlobalH   = 135;  // Height for 4-column layout
     static constexpr int kHeaderH   = 36;
     static constexpr int kEnvH      = 60;
     static constexpr int kSliderH   = 44;
