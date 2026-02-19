@@ -39,12 +39,12 @@ SquareWaveSynthAudioProcessorEditor::SquareWaveSynthAudioProcessorEditor(
 
     // Tab order: within each op column
     for (int op = 0; op < 4; op++) {
-        int base = op * (NUM_SLIDERS + 3);
+        int base = op * (NUM_SLIDERS + 2);  // Reduced by 1 since SSG selector handles its own focus
         for (int s = 0; s < NUM_SLIDERS; s++)
             ops[op].rows[s].slider.setExplicitFocusOrder(base + s + 1);
         ops[op].rsRow.slider.setExplicitFocusOrder(base + NUM_SLIDERS + 1);
         ops[op].amRow.toggle.setExplicitFocusOrder(base + NUM_SLIDERS + 2);
-        ops[op].ssgModeRow.box.setExplicitFocusOrder(base + NUM_SLIDERS + 3);
+        // SSG-EG selector manages its own focus
     }
 
     // New layout: Level above EG, then EG, then SSG below EG, then envelope params, then extras
@@ -251,16 +251,14 @@ void SquareWaveSynthAudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
     // AM Enable
     setupToggle(col.amRow, OP_AM_ID[opIdx], colAccent);
     
-    // SSG-EG Mode dropdown (includes Off option now)
-    col.ssgModeRow.box.addItemList(getSsgModeNames(), 1);
-    col.ssgModeRow.label.setText("SSG-EG", juce::dontSendNotification);
-    col.ssgModeRow.label.setFont(juce::Font(9.5f));
-    col.ssgModeRow.label.setColour(juce::Label::textColourId, dim);
-    col.ssgModeRow.label.setJustificationType(juce::Justification::centredLeft);
-    addAndMakeVisible(col.ssgModeRow.label);
-    addAndMakeVisible(col.ssgModeRow.box);
-    col.ssgModeRow.att = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        audioProcessor.apvts, OP_SSG_MODE_ID[opIdx], col.ssgModeRow.box);
+    // SSG-EG Mode visual selector (includes Off option as index 0)
+    col.ssgModeSelector.setSelectedMode(
+        static_cast<int>(audioProcessor.apvts.getRawParameterValue(OP_SSG_MODE_ID[opIdx])->load()));
+    col.ssgModeSelector.onChange = [this, opIdx](int mode) {
+        if (auto* param = audioProcessor.apvts.getParameter(OP_SSG_MODE_ID[opIdx]))
+            param->setValueNotifyingHost(param->convertTo0to1(float(mode)));
+    };
+    addAndMakeVisible(col.ssgModeSelector);
 }
 
 void SquareWaveSynthAudioProcessorEditor::setupSlider(SliderRow& row, const juce::String& paramId,
@@ -437,9 +435,8 @@ void SquareWaveSynthAudioProcessorEditor::resized()
         ops[op].envDisplay.setBounds(cx + 4, y, colW - 8, kEnvH); 
         y += kEnvH;
 
-        // SSG-EG dropdown (right below envelope) with label above
-        ops[op].ssgModeRow.label.setBounds(cx + 2, y, labelW, 12);
-        ops[op].ssgModeRow.box.setBounds(cx + 2, y + 14, colW - 6, kComboH - 14);
+        // SSG-EG visual selector (right below envelope)
+        ops[op].ssgModeSelector.setBounds(cx + 2, y, colW - 6, kComboH);
         y += kComboH;
 
         // Envelope parameter sliders: AR, DR, SL, SR, RR (indices 1-5)

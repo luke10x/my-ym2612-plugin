@@ -9,6 +9,9 @@ on:
 env:
   PLUGIN_NAME: SquareWaveSynth
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest

@@ -5,6 +5,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
 #include "AlgorithmSelector.h"
+#include "SsgEgSelector.h"
 
 namespace YmColors {
     static const juce::Colour bg     { 0xFF0D0D1A };
@@ -153,11 +154,7 @@ private:
         SliderRow        rows[NUM_SLIDERS];
         SliderRow        rsRow;      // Rate Scale
         ToggleRow        amRow;      // AM Enable
-        struct {
-            juce::ComboBox box;
-            juce::Label    label;
-            std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> att;
-        } ssgModeRow;  // SSG-EG Mode (includes Off option)
+        SsgEgSelector    ssgModeSelector;  // SSG-EG Mode visual selector
     };
     OpColumn ops[4];
 
