@@ -94,8 +94,14 @@ private:
     juce::String getSsgModeName(int mode)
     {
         const char* names[] = {
-            "\\\\\\", "\\__", "\\/\\/", "\\/_",
-            "///", "/__", "/\\/\\", "/\\__"
+            "Down Down Down",
+            "Down.",
+            "Down Up Down Up", 
+            "Down UP",
+            "Up Up Up",
+            "Up.",
+            "Up Down Up Down",
+            "Up DOWN"
         };
         return (mode >= 0 && mode < 8) ? names[mode] : "";
     }
@@ -104,10 +110,10 @@ private:
     {
         if (dropdownIdx == 0)
         {
-            // "Off" - just show text
+            // "None" 
             g.setColour(juce::Colour(0xFF556070));
-            g.setFont(juce::Font(14.0f));
-            g.drawText("Off", area, juce::Justification::centred, false);
+            g.setFont(juce::Font(12.0f));
+            g.drawText("None", area, juce::Justification::centred, false);
             return;
         }
 
@@ -115,10 +121,12 @@ private:
         
         g.setColour(juce::Colour(0xFF4fc3f7));
         
-        float x1 = area.getX() + 8;
-        float x2 = area.getRight() - 8;
-        float yTop = area.getY() + 8;
-        float yBottom = area.getBottom() - 8;
+        // Use consistent sizing for both popup and dropdown
+        float margin = 10.0f;
+        float x1 = area.getX() + margin;
+        float x2 = area.getRight() - margin;
+        float yTop = area.getY() + margin;
+        float yBottom = area.getBottom() - margin;
         float yMid = area.getCentreY();
         
         juce::Path path;
@@ -235,14 +243,14 @@ public:
         g.setFont(juce::Font(9.5f));
         g.drawText("SSG-EG", labelArea, juce::Justification::centredLeft, false);
         
-        // Dropdown box below label
+        // Dropdown box below label (square aspect ratio)
         auto boxArea = bounds.reduced(0, 1);
         g.setColour(juce::Colour(0xFF161625));
         g.fillRoundedRectangle(boxArea.toFloat(), 3.0f);
         g.setColour(juce::Colour(0xFF2a2a3e));
         g.drawRoundedRectangle(boxArea.toFloat(), 3.0f, 1.0f);
         
-        // Draw current mode diagram or "Off"
+        // Draw current mode diagram using same method as popup
         auto diagramArea = boxArea.reduced(4);
         drawSsgMode(g, selectedMode, diagramArea);
         
@@ -270,14 +278,15 @@ public:
 private:
     int selectedMode = 0;
 
+    // Use exact same drawing code as popup for consistency
     void drawSsgMode(juce::Graphics& g, int dropdownIdx, juce::Rectangle<int> area)
     {
         if (dropdownIdx == 0)
         {
-            // "Off"
+            // "None"
             g.setColour(juce::Colour(0xFF888888));
             g.setFont(juce::Font(11.0f));
-            g.drawText("Off", area, juce::Justification::centred, false);
+            g.drawText("None", area, juce::Justification::centred, false);
             return;
         }
 
@@ -285,10 +294,12 @@ private:
         
         g.setColour(juce::Colour(0xFF4fc3f7));
         
-        float x1 = area.getX() + 4;
-        float x2 = area.getRight() - 14;  // Leave space for arrow
-        float yTop = area.getY() + 4;
-        float yBottom = area.getBottom() - 4;
+        // Same margins as popup for consistent appearance
+        float margin = 6.0f;
+        float x1 = area.getX() + margin;
+        float x2 = area.getRight() - margin - 12;  // Leave space for arrow
+        float yTop = area.getY() + margin;
+        float yBottom = area.getBottom() - margin;
         
         juce::Path path;
         

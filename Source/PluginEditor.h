@@ -173,7 +173,7 @@ private:
     void setupGlobalControls();
 
     static constexpr int kTitleH    = 46;
-    static constexpr int kGlobalH   = 135;  // Height for 4-column layout
+    static constexpr int kGlobalH   = 185;  // Tall enough for square algorithm selector
     static constexpr int kHeaderH   = 36;
     static constexpr int kEnvH      = 60;
     static constexpr int kSliderH   = 44;

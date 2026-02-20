@@ -37,7 +37,7 @@ static const juce::String GLOBAL_OCTAVE     = "octave";
 
 inline juce::StringArray getLfoFreqNames()
 {
-    return { "Off", "3.98 Hz", "5.56 Hz", "6.02 Hz", "6.37 Hz",
+    return { "3.98 Hz", "5.56 Hz", "6.02 Hz", "6.37 Hz",
              "6.88 Hz", "9.63 Hz", "48.1 Hz", "72.2 Hz" };
 }
 

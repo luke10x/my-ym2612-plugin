@@ -365,40 +365,42 @@ void SquareWaveSynthAudioProcessorEditor::resized()
     const int colW = (getWidth() - kMargin) / 4;
     const int pad = 8;
     
-    // Column 1: Algorithm + Feedback
+    // Column 1: Algorithm (square)
     int col1X = static_cast<int>(kMargin * 0.5f) + pad;
-    algorithmSelector.setBounds(col1X, globalY + 8, colW - pad * 2, 70);
+    int algoSize = colW - pad * 2;  // Square
+    algorithmSelector.setBounds(col1X, globalY + 8, algoSize, algoSize);
     
-    globalFb.label.setBounds(col1X, globalY + 82, 60, 20);
-    globalFb.label.setFont(juce::Font(11.0f));
-    feedbackSlider.setBounds(col1X + 4, globalY + 102, colW - pad * 2 - 4, 22);
-    
-    // Column 2: LFO + AMS + FMS  
+    // Column 2: Feedback + Octave
     int col2X = static_cast<int>(kMargin * 0.5f) + colW + pad;
     
-    globalLfoFreq.label.setBounds(col2X, globalY + 8, colW - pad * 2, 14);
-    globalLfoFreq.label.setFont(juce::Font(11.0f));
-    lfoFreqBox.setBounds(col2X, globalY + 24, colW - pad * 2, 24);
+    globalFb.label.setBounds(col2X, globalY + 8, 60, 20);
+    globalFb.label.setFont(juce::Font(11.0f));
+    feedbackSlider.setBounds(col2X + 4, globalY + 28, colW - pad * 2 - 4, 22);
     
-    globalAms.label.setBounds(col2X, globalY + 56, 40, 20);
-    globalAms.label.setFont(juce::Font(11.0f));
-    amsSlider.setBounds(col2X + 42, globalY + 56, colW - pad * 2 - 42, 22);
+    globalOct.label.setBounds(col2X, globalY + 58, 60, 20);
+    globalOct.label.setFont(juce::Font(11.0f));
+    octaveSlider.setBounds(col2X + 4, globalY + 78, colW - pad * 2 - 4, 22);
     
-    globalFms.label.setBounds(col2X, globalY + 84, 40, 20);
-    globalFms.label.setFont(juce::Font(11.0f));
-    fmsSlider.setBounds(col2X + 42, globalY + 84, colW - pad * 2 - 42, 22);
-    
-    // Column 3: Octave + Import + Export
+    // Column 3: LFO + AMS + FMS
     int col3X = static_cast<int>(kMargin * 0.5f) + colW * 2 + pad;
     
-    globalOct.label.setBounds(col3X, globalY + 8, 60, 20);
-    globalOct.label.setFont(juce::Font(11.0f));
-    octaveSlider.setBounds(col3X + 4, globalY + 28, colW - pad * 2 - 4, 22);
+    globalLfoFreq.label.setBounds(col3X, globalY + 8, colW - pad * 2, 14);
+    globalLfoFreq.label.setFont(juce::Font(11.0f));
+    lfoFreqBox.setBounds(col3X, globalY + 24, colW - pad * 2, 24);
     
-    importBtn.setBounds(col3X, globalY + 62, colW - pad * 2, 28);
-    exportBtn.setBounds(col3X, globalY + 96, colW - pad * 2, 28);
+    globalAms.label.setBounds(col3X, globalY + 56, 40, 20);
+    globalAms.label.setFont(juce::Font(11.0f));
+    amsSlider.setBounds(col3X + 42, globalY + 56, colW - pad * 2 - 42, 22);
     
-    // Column 4: Empty (reserved for future use)
+    globalFms.label.setBounds(col3X, globalY + 84, 40, 20);
+    globalFms.label.setFont(juce::Font(11.0f));
+    fmsSlider.setBounds(col3X + 42, globalY + 84, colW - pad * 2 - 42, 22);
+    
+    // Column 4: Import + Export
+    int col4X = static_cast<int>(kMargin * 0.5f) + colW * 3 + pad;
+    
+    importBtn.setBounds(col4X, globalY + 40, colW - pad * 2, 28);
+    exportBtn.setBounds(col4X, globalY + 74, colW - pad * 2, 28);
 
     // Operator columns below global panel
     const int opAreaY = kTitleH + kMargin + kGlobalH + kMargin;
@@ -435,9 +437,9 @@ void SquareWaveSynthAudioProcessorEditor::resized()
         ops[op].envDisplay.setBounds(cx + 4, y, colW - 8, kEnvH); 
         y += kEnvH;
 
-        // SSG-EG visual selector (right below envelope)
-        ops[op].ssgModeSelector.setBounds(cx + 2, y, colW - 6, kComboH);
-        y += kComboH;
+        // SSG-EG visual selector (same height as envelope for consistency)
+        ops[op].ssgModeSelector.setBounds(cx + 2, y, colW - 6, kEnvH);
+        y += kEnvH;
 
         // Envelope parameter sliders: AR, DR, SL, SR, RR (indices 1-5)
         for (int s = 1; s <= 5; s++) {
@@ -471,7 +473,7 @@ void SquareWaveSynthAudioProcessorEditor::resized()
     }
 
     // MIDI keyboard - centered with background padding
-    const int opAreaH = kHeaderH + kSliderH + kEnvH + kComboH + 
+    const int opAreaH = kHeaderH + kSliderH + kEnvH + kEnvH +  // SSG now same height as envelope
                         NUM_SLIDERS_AFTER_ENV * kSliderH + NUM_SLIDERS_EXTRA * kSliderH + 
                         kSliderH + kToggleH + kPad * 2;
     const int kbY = kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin;

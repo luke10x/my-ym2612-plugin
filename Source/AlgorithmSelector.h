@@ -262,21 +262,22 @@ public:
         g.setFont(juce::Font(11.0f));
         g.drawText("Algorithm", labelArea, juce::Justification::centredLeft, false);
         
-        // Dropdown box below label
+        // Dropdown box below label (square)
         auto boxArea = bounds.reduced(0, 2);
         g.setColour(juce::Colour(0xFF161625));
         g.fillRoundedRectangle(boxArea.toFloat(), 4.0f);
         g.setColour(juce::Colour(0xFF2a2a3e));
         g.drawRoundedRectangle(boxArea.toFloat(), 4.0f, 1.0f);
         
-        // Draw current algorithm diagram
-        auto diagramArea = boxArea.reduced(6);
+        // Draw current algorithm diagram using same sizing as popup
+        auto diagramArea = boxArea.reduced(8);
         drawAlgorithm(g, selectedAlgo, diagramArea);
         
         // Dropdown arrow (bottom right corner)
         g.setColour(juce::Colour(0xFF556070));
         g.setFont(juce::Font(10.0f));
-        g.drawText("▼", boxArea.withLeft(boxArea.getRight() - 16), juce::Justification::centred, false);
+        g.drawText("▼", boxArea.withLeft(boxArea.getRight() - 16).withTop(boxArea.getBottom() - 16), 
+                   juce::Justification::centred, false);
     }
 
     void mouseDown(const juce::MouseEvent&) override
