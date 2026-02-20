@@ -55,6 +55,8 @@ SquareWaveSynthAudioProcessorEditor::SquareWaveSynthAudioProcessorEditor(
     setSize(720, totalH);
     setResizable(true, true);
     setResizeLimits(600, totalH, 1600, totalH + 100);
+    
+    addAndMakeVisible(oscilloscope);
 
     startTimerHz(30);
 }
@@ -357,11 +359,17 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
 // ─────────────────────────────────────────────────────────────────────────────
 void SquareWaveSynthAudioProcessorEditor::resized()
 {
-    // Instrument name label in title bar
-    instrumentNameLabel.setBounds(getWidth() / 4, 4, getWidth() / 2, 20);
+    const int scopeH = 60;
+    
+    // Oscilloscope at very top
+    oscilloscope.setBounds(kMargin, kMargin, getWidth() - kMargin * 2, scopeH);
+    
+    // Instrument name label below scope
+    const int nameY = kMargin + scopeH + 4;
+    instrumentNameLabel.setBounds(getWidth() / 4, nameY, getWidth() / 2, 20);
 
-    // Global panel - 4 columns
-    const int globalY = kTitleH + kMargin;
+    // Global panel below name
+    const int globalY = nameY + 24;
     const int colW = (getWidth() - kMargin) / 4;
     const int pad = 8;
     

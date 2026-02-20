@@ -195,6 +195,38 @@ void SquareWaveSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     midiKeyboardState.processNextMidiBuffer(midi, 0, buffer.getNumSamples(), true);
     pushParamsToVoices();
     synth.renderNextBlock(buffer, midi, 0, buffer.getNumSamples());
+    
+    // Push samples to FIFO for oscilloscope
+    if (buffer.getNumChannels() > 0)
+    {
+        const int numSamples = buffer.getNumSamples();
+        const int numToWrite = juce::jmin(numSamples, audioFifo.getFreeSpace());
+        
+        if (numToWrite > 0)
+        {
+            int start1, size1, start2, size2;
+            audioFifo.prepareToWrite(numToWrite, start1, size1, start2, size2);
+            
+            // Mix to mono and write to FIFO
+            for (int i = 0; i < size1; ++i)
+            {
+                float sample = buffer.getSample(0, i);
+                if (buffer.getNumChannels() > 1)
+                    sample = (sample + buffer.getSample(1, i)) * 0.5f;
+                audioFifoBuffer[start1 + i] = sample;
+            }
+            
+            for (int i = 0; i < size2; ++i)
+            {
+                float sample = buffer.getSample(0, size1 + i);
+                if (buffer.getNumChannels() > 1)
+                    sample = (sample + buffer.getSample(1, size1 + i)) * 0.5f;
+                audioFifoBuffer[start2 + i] = sample;
+            }
+            
+            audioFifo.finishedWrite(size1 + size2);
+        }
+    }
 }
 
 juce::AudioProcessorEditor* SquareWaveSynthAudioProcessor::createEditor()

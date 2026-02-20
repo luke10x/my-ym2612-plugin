@@ -6,6 +6,7 @@
 #include "PluginProcessor.h"
 #include "AlgorithmSelector.h"
 #include "SsgEgSelector.h"
+#include "OscilloscopeDisplay.h"
 
 namespace YmColors {
     static const juce::Colour bg     { 0xFF0D0D1A };
@@ -126,6 +127,7 @@ private:
     juce::Slider   feedbackSlider, amsSlider, fmsSlider, octaveSlider;
     juce::TextButton importBtn, exportBtn;
     juce::Label instrumentNameLabel;
+    OscilloscopeDisplay oscilloscope;
 
     LabeledControl globalAlgo, globalFb, globalLfoEn, globalLfoFreq,
                    globalAms, globalFms, globalOct;
@@ -162,6 +164,26 @@ private:
 
     void timerCallback() override
     {
+        // Pull samples from audio FIFO and push to oscilloscope
+        auto& fifo = audioProcessor.getAudioFifo();
+        const auto* fifoBuffer = audioProcessor.getAudioFifoBuffer();
+        
+        const int numAvailable = fifo.getNumReady();
+        if (numAvailable > 0)
+        {
+            int start1, size1, start2, size2;
+            fifo.prepareToRead(numAvailable, start1, size1, start2, size2);
+            
+            for (int i = 0; i < size1; ++i)
+                oscilloscope.pushSample(fifoBuffer[start1 + i]);
+            
+            for (int i = 0; i < size2; ++i)
+                oscilloscope.pushSample(fifoBuffer[start2 + i]);
+            
+            fifo.finishedRead(size1 + size2);
+        }
+        
+        // Update envelope displays
         for (auto& op : ops) op.envDisplay.repaint();
         midiKeyboard.repaint();
     }
@@ -172,7 +194,7 @@ private:
     void styleColumn(OpColumn& col, int opIdx);
     void setupGlobalControls();
 
-    static constexpr int kTitleH    = 46;
+    static constexpr int kTitleH    = 92;  // Scope (60) + margin + name (20) + margin
     static constexpr int kGlobalH   = 185;  // Tall enough for square algorithm selector
     static constexpr int kHeaderH   = 36;
     static constexpr int kEnvH      = 60;

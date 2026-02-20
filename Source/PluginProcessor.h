@@ -110,6 +110,11 @@ public:
     // Instrument name (not automated, stored in state)
     void setInstrumentName(const juce::String& name);
     juce::String getInstrumentName() const;
+    
+    // Oscilloscope support - FIFO for audio samples
+    juce::AbstractFifo& getAudioFifo() { return audioFifo; }
+    const float* getAudioFifoBuffer() const { return audioFifoBuffer.data(); }
+    static constexpr int getAudioFifoSize() { return 8192; }
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -118,6 +123,10 @@ private:
     juce::MidiKeyboardState midiKeyboardState;
     std::array<Ym2612Voice*, NUM_VOICES> voices {};
     juce::String instrumentName { "YM2612 Instrument" };
+    
+    // Audio FIFO for oscilloscope
+    juce::AbstractFifo audioFifo { 8192 };
+    std::array<float, 8192> audioFifoBuffer {};
 
     void pushParamsToVoices();
 
