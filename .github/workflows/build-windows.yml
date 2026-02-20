@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  PLUGIN_NAME: SquareWaveSynth
+  PLUGIN_NAME: ARM2612
 
 permissions:
   contents: write
