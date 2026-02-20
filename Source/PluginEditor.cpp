@@ -57,6 +57,14 @@ SquareWaveSynthAudioProcessorEditor::SquareWaveSynthAudioProcessorEditor(
     setResizeLimits(600, totalH, 1600, totalH + 100);
     
     addAndMakeVisible(oscilloscope);
+    
+    // Phase lock toggle
+    phaseLockToggle.setButtonText("Phase Lock");
+    phaseLockToggle.setToggleState(false, juce::dontSendNotification);
+    phaseLockToggle.onClick = [this]() {
+        oscilloscope.setPhaseLock(phaseLockToggle.getToggleState());
+    };
+    addAndMakeVisible(phaseLockToggle);
 
     startTimerHz(30);
 }
@@ -398,17 +406,20 @@ void SquareWaveSynthAudioProcessorEditor::resized()
     globalFms.label.setFont(juce::Font(11.0f));
     fmsSlider.setBounds(col3X + 42, globalY + 84, colW - pad * 2 - 42, 22);
     
-    // Column 4: Import + Export
+    // Column 4: Import + Export + Phase Lock
     int col4X = static_cast<int>(kMargin * 0.5f) + colW * 3 + pad;
     
     importBtn.setBounds(col4X, globalY + 40, colW - pad * 2, 28);
     exportBtn.setBounds(col4X, globalY + 74, colW - pad * 2, 28);
     
-    // Oscilloscope spanning columns 3-4 at bottom
+    // Phase lock toggle at bottom of column 4
+    phaseLockToggle.setBounds(col4X, globalY + 112, colW - pad * 2, 24);
+    
+    // Oscilloscope spanning columns 2-3 at bottom
     int scopeY = globalY + 112;  // Below all other controls
     int scopeW = colW * 2 - pad * 2;
     int scopeH = kGlobalH - 112 - pad;  // Fill remaining space to bottom of global panel
-    oscilloscope.setBounds(col3X, scopeY, scopeW, scopeH);
+    oscilloscope.setBounds(col2X, scopeY, scopeW, scopeH);
 
     // Operator columns below global panel
     const int opAreaY = kTitleH + kMargin + kGlobalH + kMargin;

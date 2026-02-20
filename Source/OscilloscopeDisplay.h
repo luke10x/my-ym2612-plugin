@@ -22,7 +22,19 @@ public:
         const juce::ScopedLock sl(bufferLock);
         buffer[writePosition] = sample;
         writePosition = (writePosition + 1) % bufferSize;
+        
+        // Detect zero crossings for phase lock
+        if (phaseLockEnabled && lastSample <= 0.0f && sample > 0.0f)
+        {
+            triggerPosition = writePosition;
+        }
+        lastSample = sample;
     }
+    
+    void setPhaseLock(bool enabled) { phaseLockEnabled = enabled; }
+    bool getPhaseLock() const { return phaseLockEnabled; }
+    
+    void setZoom(float zoomFactor) { zoom = juce::jlimit(1.0f, 5.0f, zoomFactor); }
 
     void paint(juce::Graphics& g) override
     {
@@ -52,11 +64,16 @@ public:
         float centerY = bounds.getCentreY();
         float amplitude = height * 0.45f;  // Use 90% of height for waveform (±45% from center)
         
-        int samplesToDisplay = juce::jmin(bufferSize, static_cast<int>(width));
+        // Use zoom to reduce number of samples displayed (zooms in on x-axis)
+        int samplesToDisplay = static_cast<int>(bufferSize / zoom);
+        samplesToDisplay = juce::jmin(samplesToDisplay, bufferSize);
+        
+        // Start position: use trigger position if phase-locked, otherwise follow write position
+        int startPos = phaseLockEnabled ? triggerPosition : writePosition;
         
         for (int i = 0; i < samplesToDisplay; ++i)
         {
-            int readPos = (writePosition + i) % bufferSize;
+            int readPos = (startPos + i) % bufferSize;
             float sample = buffer[readPos];
             
             // Clamp sample to prevent drawing outside bounds
@@ -95,5 +112,9 @@ private:
     static constexpr int bufferSize = 2048;  // Circular buffer size
     std::vector<float> buffer;
     int writePosition = 0;
+    int triggerPosition = 0;
+    float lastSample = 0.0f;
+    bool phaseLockEnabled = false;
+    float zoom = 2.5f;  // 2.5x zoom by default
     juce::CriticalSection bufferLock;
 };

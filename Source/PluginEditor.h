@@ -128,6 +128,7 @@ private:
     juce::TextButton importBtn, exportBtn;
     juce::Label instrumentNameLabel;
     OscilloscopeDisplay oscilloscope;
+    juce::ToggleButton phaseLockToggle;
 
     LabeledControl globalAlgo, globalFb, globalLfoEn, globalLfoFreq,
                    globalAms, globalFms, globalOct;
