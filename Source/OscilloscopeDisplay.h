@@ -50,7 +50,7 @@ public:
         float width = static_cast<float>(bounds.getWidth());
         float height = static_cast<float>(bounds.getHeight());
         float centerY = bounds.getCentreY();
-        float amplitude = height * 0.4f;  // Use 80% of height for waveform
+        float amplitude = height * 0.45f;  // Use 90% of height for waveform (±45% from center)
         
         int samplesToDisplay = juce::jmin(bufferSize, static_cast<int>(width));
         

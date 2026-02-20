@@ -359,17 +359,11 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
 // ─────────────────────────────────────────────────────────────────────────────
 void SquareWaveSynthAudioProcessorEditor::resized()
 {
-    const int scopeH = 60;
-    
-    // Oscilloscope at very top
-    oscilloscope.setBounds(kMargin, kMargin, getWidth() - kMargin * 2, scopeH);
-    
-    // Instrument name label below scope
-    const int nameY = kMargin + scopeH + 4;
-    instrumentNameLabel.setBounds(getWidth() / 4, nameY, getWidth() / 2, 20);
+    // Instrument name label in title bar
+    instrumentNameLabel.setBounds(getWidth() / 4, 4, getWidth() / 2, 20);
 
-    // Global panel below name
-    const int globalY = nameY + 24;
+    // Global panel - 4 columns
+    const int globalY = kTitleH + kMargin;
     const int colW = (getWidth() - kMargin) / 4;
     const int pad = 8;
     
@@ -409,6 +403,12 @@ void SquareWaveSynthAudioProcessorEditor::resized()
     
     importBtn.setBounds(col4X, globalY + 40, colW - pad * 2, 28);
     exportBtn.setBounds(col4X, globalY + 74, colW - pad * 2, 28);
+    
+    // Oscilloscope spanning columns 3-4 at bottom
+    int scopeY = globalY + 112;  // Below all other controls
+    int scopeW = colW * 2 - pad * 2;
+    int scopeH = kGlobalH - 112 - pad;  // Fill remaining space to bottom of global panel
+    oscilloscope.setBounds(col3X, scopeY, scopeW, scopeH);
 
     // Operator columns below global panel
     const int opAreaY = kTitleH + kMargin + kGlobalH + kMargin;

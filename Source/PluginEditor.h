@@ -194,7 +194,7 @@ private:
     void styleColumn(OpColumn& col, int opIdx);
     void setupGlobalControls();
 
-    static constexpr int kTitleH    = 92;  // Scope (60) + margin + name (20) + margin
+    static constexpr int kTitleH    = 46;  // Title bar with instrument name
     static constexpr int kGlobalH   = 185;  // Tall enough for square algorithm selector
     static constexpr int kHeaderH   = 36;
     static constexpr int kEnvH      = 60;
