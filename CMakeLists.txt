@@ -9,7 +9,7 @@ if(APPLE)
     add_compile_options(-Wno-error=unavailable -Wno-deprecated-declarations)
 endif()
 
-project(SquareWaveSynth VERSION 1.0.0)
+project(ARM2612 VERSION 1.0.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -68,11 +68,11 @@ if(APPLE)
     list(APPEND PLUGIN_FORMATS AU)
 endif()
 
-juce_add_plugin(SquareWaveSynth
-    COMPANY_NAME            "YourCompany"
-    BUNDLE_ID               "com.yourcompany.squarewavesynth"
-    PLUGIN_MANUFACTURER_CODE "YrCo"
-    PLUGIN_CODE              "Ym26"
+juce_add_plugin(ARM2612
+    COMPANY_NAME            "Arminas ir Lukas"
+    BUNDLE_ID               "com.arminasirlukas.arm2612"
+    PLUGIN_MANUFACTURER_CODE "ArLu"
+    PLUGIN_CODE              "Arm2"
 
     FORMATS                 ${PLUGIN_FORMATS}
 
@@ -82,15 +82,16 @@ juce_add_plugin(SquareWaveSynth
     IS_MIDI_EFFECT          FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
 
-    PRODUCT_NAME            "YM2612 Synth"
+    PRODUCT_NAME            "ARM2612"
     VERSION                 "1.0.0"
+    DESCRIPTION             "YM2612 (Sega Mega Drive) FM Synth"
 
     VST3_CATEGORIES         "Instrument" "Synths"
     AU_MAIN_TYPE            "kAudioUnitType_MusicDevice"
 )
 
 # ─── Sources ─────────────────────────────────────────────────────────────────
-target_sources(SquareWaveSynth
+target_sources(ARM2612
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginProcessor.h
@@ -101,7 +102,7 @@ target_sources(SquareWaveSynth
 )
 
 # ─── Compile definitions ──────────────────────────────────────────────────────
-target_compile_definitions(SquareWaveSynth
+target_compile_definitions(ARM2612
     PUBLIC
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
@@ -110,7 +111,7 @@ target_compile_definitions(SquareWaveSynth
 )
 
 # ─── Link libraries ───────────────────────────────────────────────────────────
-target_link_libraries(SquareWaveSynth
+target_link_libraries(ARM2612
     PRIVATE
         ymfm_lib                        # <── ymfm FM emulation
         juce::juce_audio_basics

@@ -67,11 +67,11 @@ inline juce::StringArray getSsgModeNames()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-class SquareWaveSynthAudioProcessor : public juce::AudioProcessor
+class ARM2612AudioProcessor : public juce::AudioProcessor
 {
 public:
-    SquareWaveSynthAudioProcessor();
-    ~SquareWaveSynthAudioProcessor() override;
+    ARM2612AudioProcessor();
+    ~ARM2612AudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -122,7 +122,7 @@ private:
     juce::Synthesiser synth;
     juce::MidiKeyboardState midiKeyboardState;
     std::array<Ym2612Voice*, NUM_VOICES> voices {};
-    juce::String instrumentName { "YM2612 Instrument" };
+    juce::String instrumentName { "ARM2612 Patch" };
     
     // Audio FIFO for oscilloscope
     juce::AbstractFifo audioFifo { 8192 };
@@ -130,5 +130,5 @@ private:
 
     void pushParamsToVoices();
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SquareWaveSynthAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ARM2612AudioProcessor)
 };

@@ -1,5 +1,5 @@
 @echo off
-REM build.bat – configure and build SquareWaveSynth on Windows (VST3 only)
+REM build.bat – configure and build ARM2612 on Windows (VST3 only)
 REM Usage:
 REM   build.bat                          auto-fetch JUCE, Release
 REM   build.bat --juce C:\path\to\JUCE  use local JUCE
@@ -48,7 +48,7 @@ echo.
 echo Build complete!
 echo.
 echo To install VST3, copy:
-echo   %BUILD_DIR%\SquareWaveSynth_artefacts\%BUILD_TYPE%\VST3\*.vst3
+echo   %BUILD_DIR%\ARM2612_artefacts\%BUILD_TYPE%\VST3\*.vst3
 echo to:
 echo   C:\Program Files\Common Files\VST3\
 endlocal

@@ -91,7 +91,7 @@ private:
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SquareWaveSynthAudioProcessorEditor
+// ARM2612AudioProcessorEditor
 //
 // Layout:
 //   Title bar
@@ -99,19 +99,19 @@ private:
 //   [OP1 col] [OP2 col] [OP3 col] [OP4 col]
 //   MIDI keyboard
 // ─────────────────────────────────────────────────────────────────────────────
-class SquareWaveSynthAudioProcessorEditor
+class ARM2612AudioProcessorEditor
     : public juce::AudioProcessorEditor,
       private juce::Timer
 {
 public:
-    explicit SquareWaveSynthAudioProcessorEditor(SquareWaveSynthAudioProcessor&);
-    ~SquareWaveSynthAudioProcessorEditor() override;
+    explicit ARM2612AudioProcessorEditor(ARM2612AudioProcessor&);
+    ~ARM2612AudioProcessorEditor() override;
 
     void paint(juce::Graphics&) override;
     void resized() override;
 
 private:
-    SquareWaveSynthAudioProcessor& audioProcessor;
+    ARM2612AudioProcessor& audioProcessor;
 
     // ── Global settings panel ─────────────────────────────────────────────────
     struct LabeledControl {
@@ -206,5 +206,5 @@ private:
     static constexpr int kMargin    = 8;
     static constexpr int kPad       = 6;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SquareWaveSynthAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ARM2612AudioProcessorEditor)
 };

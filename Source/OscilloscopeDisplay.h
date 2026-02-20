@@ -62,7 +62,7 @@ public:
         float width = static_cast<float>(bounds.getWidth());
         float height = static_cast<float>(bounds.getHeight());
         float centerY = bounds.getCentreY();
-        float amplitude = height * 0.45f;  // Use 90% of height for waveform (±45% from center)
+        float amplitude = height * 3.45f;  // High gain for clear visibility
         
         // Use zoom to reduce number of samples displayed (zooms in on x-axis)
         int samplesToDisplay = static_cast<int>(bufferSize / zoom);

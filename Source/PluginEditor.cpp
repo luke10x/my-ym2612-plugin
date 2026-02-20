@@ -17,8 +17,8 @@ static constexpr int NUM_SLIDERS_AFTER_ENV = 5;    // AR, DR, SL, SR, RR
 static constexpr int NUM_SLIDERS_EXTRA = 2;        // MUL, DT
 
 // ─────────────────────────────────────────────────────────────────────────────
-SquareWaveSynthAudioProcessorEditor::SquareWaveSynthAudioProcessorEditor(
-    SquareWaveSynthAudioProcessor& p)
+ARM2612AudioProcessorEditor::ARM2612AudioProcessorEditor(
+    ARM2612AudioProcessor& p)
     : AudioProcessorEditor(&p),
       audioProcessor(p),
       midiKeyboard(p.getMidiKeyboardState(),
@@ -69,13 +69,13 @@ SquareWaveSynthAudioProcessorEditor::SquareWaveSynthAudioProcessorEditor(
     startTimerHz(30);
 }
 
-SquareWaveSynthAudioProcessorEditor::~SquareWaveSynthAudioProcessorEditor()
+ARM2612AudioProcessorEditor::~ARM2612AudioProcessorEditor()
 {
     stopTimer();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-void SquareWaveSynthAudioProcessorEditor::setupGlobalControls()
+void ARM2612AudioProcessorEditor::setupGlobalControls()
 {
     // Instrument name label (editable)
     instrumentNameLabel.setText(audioProcessor.getInstrumentName(), juce::dontSendNotification);
@@ -225,7 +225,7 @@ void SquareWaveSynthAudioProcessorEditor::setupGlobalControls()
     addAndMakeVisible(exportBtn);
 }
 
-void SquareWaveSynthAudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
+void ARM2612AudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
 {
     bool carrier = OP_CARRIER[opIdx];
     juce::Colour colAccent = carrier ? YmColors::accent : YmColors::mod;
@@ -271,7 +271,7 @@ void SquareWaveSynthAudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
     addAndMakeVisible(col.ssgModeSelector);
 }
 
-void SquareWaveSynthAudioProcessorEditor::setupSlider(SliderRow& row, const juce::String& paramId,
+void ARM2612AudioProcessorEditor::setupSlider(SliderRow& row, const juce::String& paramId,
                                                        int minVal, int maxVal, juce::Colour colour)
 {
     auto& sl = row.slider;
@@ -295,7 +295,7 @@ void SquareWaveSynthAudioProcessorEditor::setupSlider(SliderRow& row, const juce
         audioProcessor.apvts, paramId, sl);
 }
 
-void SquareWaveSynthAudioProcessorEditor::setupToggle(ToggleRow& row, const juce::String& paramId,
+void ARM2612AudioProcessorEditor::setupToggle(ToggleRow& row, const juce::String& paramId,
                                                        juce::Colour colour)
 {
     row.toggle.setButtonText("");
@@ -313,7 +313,7 @@ void SquareWaveSynthAudioProcessorEditor::setupToggle(ToggleRow& row, const juce
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
+void ARM2612AudioProcessorEditor::paint(juce::Graphics& g)
 {
     g.fillAll(bg);
 
@@ -365,7 +365,7 @@ void SquareWaveSynthAudioProcessorEditor::paint(juce::Graphics& g)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-void SquareWaveSynthAudioProcessorEditor::resized()
+void ARM2612AudioProcessorEditor::resized()
 {
     // Instrument name label in title bar
     instrumentNameLabel.setBounds(getWidth() / 4, 4, getWidth() / 2, 20);

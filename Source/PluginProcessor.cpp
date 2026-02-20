@@ -6,7 +6,7 @@
 //  Parameter layout
 // ─────────────────────────────────────────────────────────────────────────────
 juce::AudioProcessorValueTreeState::ParameterLayout
-SquareWaveSynthAudioProcessor::createParameterLayout()
+ARM2612AudioProcessor::createParameterLayout()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
@@ -86,7 +86,7 @@ SquareWaveSynthAudioProcessor::createParameterLayout()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-SquareWaveSynthAudioProcessor::SquareWaveSynthAudioProcessor()
+ARM2612AudioProcessor::ARM2612AudioProcessor()
     : AudioProcessor(BusesProperties()
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "Parameters", createParameterLayout())
@@ -99,32 +99,32 @@ SquareWaveSynthAudioProcessor::SquareWaveSynthAudioProcessor()
     }
 }
 
-SquareWaveSynthAudioProcessor::~SquareWaveSynthAudioProcessor() {}
+ARM2612AudioProcessor::~ARM2612AudioProcessor() {}
 
-void SquareWaveSynthAudioProcessor::prepareToPlay(double sampleRate, int)
+void ARM2612AudioProcessor::prepareToPlay(double sampleRate, int)
 {
     synth.setCurrentPlaybackSampleRate(sampleRate);
     midiKeyboardState.reset();
     pushParamsToVoices();
 }
 
-void SquareWaveSynthAudioProcessor::releaseResources()
+void ARM2612AudioProcessor::releaseResources()
 {
     midiKeyboardState.reset();
 }
 
-void SquareWaveSynthAudioProcessor::setInstrumentName(const juce::String& name)
+void ARM2612AudioProcessor::setInstrumentName(const juce::String& name)
 {
     instrumentName = name;
 }
 
-juce::String SquareWaveSynthAudioProcessor::getInstrumentName() const
+juce::String ARM2612AudioProcessor::getInstrumentName() const
 {
     return instrumentName;
 }
 
 #ifndef JucePlugin_PreferredChannelConfigurations
-bool SquareWaveSynthAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+bool ARM2612AudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
     if (layouts.getMainInputChannelSet() != juce::AudioChannelSet::disabled()) return false;
     auto out = layouts.getMainOutputChannelSet();
@@ -135,7 +135,7 @@ bool SquareWaveSynthAudioProcessor::isBusesLayoutSupported(const BusesLayout& la
 // ─────────────────────────────────────────────────────────────────────────────
 //  Push parameters to voices
 // ─────────────────────────────────────────────────────────────────────────────
-void SquareWaveSynthAudioProcessor::pushParamsToVoices()
+void ARM2612AudioProcessor::pushParamsToVoices()
 {
     // Read global params
     Ym2612Voice::GlobalParams gp;
@@ -185,7 +185,7 @@ void SquareWaveSynthAudioProcessor::pushParamsToVoices()
     }
 }
 
-void SquareWaveSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+void ARM2612AudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                                   juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -229,12 +229,12 @@ void SquareWaveSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     }
 }
 
-juce::AudioProcessorEditor* SquareWaveSynthAudioProcessor::createEditor()
+juce::AudioProcessorEditor* ARM2612AudioProcessor::createEditor()
 {
-    return new SquareWaveSynthAudioProcessorEditor(*this);
+    return new ARM2612AudioProcessorEditor(*this);
 }
 
-void SquareWaveSynthAudioProcessor::getStateInformation(juce::MemoryBlock& dest)
+void ARM2612AudioProcessor::getStateInformation(juce::MemoryBlock& dest)
 {
     auto state = apvts.copyState();
     // Add instrument name to state
@@ -243,7 +243,7 @@ void SquareWaveSynthAudioProcessor::getStateInformation(juce::MemoryBlock& dest)
     copyXmlToBinary(*xml, dest);
 }
 
-void SquareWaveSynthAudioProcessor::setStateInformation(const void* data, int size)
+void ARM2612AudioProcessor::setStateInformation(const void* data, int size)
 {
     std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, size));
     if (xml && xml->hasTagName(apvts.state.getType())) {
@@ -256,7 +256,7 @@ void SquareWaveSynthAudioProcessor::setStateInformation(const void* data, int si
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new SquareWaveSynthAudioProcessor();
+    return new ARM2612AudioProcessor();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -278,7 +278,7 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 //  So: disabled = 0x00,  enabled mode N = 0x08 | N
 // ─────────────────────────────────────────────────────────────────────────────
 
-bool SquareWaveSynthAudioProcessor::importFurnaceInstrument(const juce::File& file)
+bool ARM2612AudioProcessor::importFurnaceInstrument(const juce::File& file)
 {
     FurnaceFormat::Instrument ins;
     if (!FurnaceFormat::readFui(file, ins))
@@ -355,7 +355,7 @@ bool SquareWaveSynthAudioProcessor::importFurnaceInstrument(const juce::File& fi
     return true;
 }
 
-bool SquareWaveSynthAudioProcessor::exportFurnaceInstrument(
+bool ARM2612AudioProcessor::exportFurnaceInstrument(
     const juce::File& file, const juce::String& patchName)
 {
     auto gi = [&](const juce::String& id) {

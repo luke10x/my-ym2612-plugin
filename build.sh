@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build.sh – configure and build SquareWaveSynth
+# build.sh – configure and build ARM2612
 # Usage:
 #   ./build.sh                          # auto-fetch JUCE, Release build
 #   ./build.sh --juce /path/to/JUCE     # use local JUCE checkout
@@ -59,6 +59,6 @@ find . -name "*.vst3" -o -name "*.component" 2>/dev/null | while read -r f; do
 done
 echo ""
 echo "To install VST3 (macOS/Linux):"
-echo "  cp -r build/SquareWaveSynth_artefacts/${BUILD_TYPE}/VST3/*.vst3 ~/Library/Audio/Plug-Ins/VST3/"
+echo "  cp -r build/ARM2612_artefacts/${BUILD_TYPE}/VST3/*.vst3 ~/Library/Audio/Plug-Ins/VST3/"
 echo "To install AU (macOS only):"
-echo "  cp -r build/SquareWaveSynth_artefacts/${BUILD_TYPE}/AU/*.component ~/Library/Audio/Plug-Ins/Components/"
+echo "  cp -r build/ARM2612_artefacts/${BUILD_TYPE}/AU/*.component ~/Library/Audio/Plug-Ins/Components/"
