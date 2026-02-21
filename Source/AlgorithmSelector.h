@@ -43,13 +43,13 @@ public:
             auto diagramArea = box.reduced(8).withTrimmedBottom(20).withTrimmedRight(15);
             drawAlgorithm(g, i, diagramArea);
             
-            // Output arrow on right side
+            // Output dot on right side (bigger)
             float arrowX = box.getRight() - 10;
             float arrowY = box.getCentreY();
             g.setColour(juce::Colour(0xFF00D4AA));
-            g.fillEllipse(arrowX - 3, arrowY - 3, 6, 6);
+            g.fillEllipse(arrowX - 5, arrowY - 5, 10, 10);  // Bigger dot
             juce::Path arrow;
-            arrow.addTriangle(arrowX + 4, arrowY, arrowX - 2, arrowY - 4, arrowX - 2, arrowY + 4);
+            arrow.addTriangle(arrowX + 6, arrowY, arrowX, arrowY - 5, arrowX, arrowY + 5);
             g.fillPath(arrow);
 
             // Algorithm number
@@ -132,15 +132,25 @@ private:
         g.setColour(col);
         g.drawLine(x1, y1, x2, y2, 2.0f);
     }
+    
+    void drawOutputConnection(juce::Graphics& g, float opX, float opY, juce::Rectangle<int> r, juce::Colour col)
+    {
+        // Draw line from operator to right edge (output)
+        float outputX = r.getRight();
+        g.setColour(col);
+        g.drawLine(opX, opY, outputX, opY, 2.0f);
+    }
 
-    // Algorithm drawing functions (same as before)
+    // Algorithm drawing functions with carrier outputs
     void drawAlgo0(juce::Graphics& g, juce::Rectangle<int> r, juce::Colour lc, juce::Colour oc, juce::Colour tc)
     {
+        // Algorithm 0: 1→2→3→4 (only OP4 is carrier)
         float cy = r.getCentreY();
         float x1 = r.getX() + 15, x2 = r.getX() + 40, x3 = r.getX() + 65, x4 = r.getX() + 90;
         drawLine(g, x1, cy, x2, cy, lc);
         drawLine(g, x2, cy, x3, cy, lc);
         drawLine(g, x3, cy, x4, cy, lc);
+        drawOutputConnection(g, x4, cy, r, lc);  // OP4 to output
         drawOp(g, x1, cy, 1, oc, tc);
         drawOp(g, x2, cy, 2, oc, tc);
         drawOp(g, x3, cy, 3, oc, tc);
@@ -149,11 +159,13 @@ private:
 
     void drawAlgo1(juce::Graphics& g, juce::Rectangle<int> r, juce::Colour lc, juce::Colour oc, juce::Colour tc)
     {
+        // Algorithm 1: 1→2←3, 2→4 (only OP4 is carrier)
         float x1 = r.getX() + 15, x2 = r.getX() + 45, x3 = r.getX() + 75;
         float y1 = r.getY() + 20, y2 = r.getCentreY(), y3 = r.getBottom() - 20;
         drawLine(g, x1, y1, x2, y2, lc);
         drawLine(g, x1, y3, x2, y2, lc);
         drawLine(g, x2, y2, x3, y2, lc);
+        drawOutputConnection(g, x3, y2, r, lc);  // OP4 to output
         drawOp(g, x1, y1, 1, oc, tc);
         drawOp(g, x1, y3, 3, oc, tc);
         drawOp(g, x2, y2, 2, oc, tc);
@@ -162,11 +174,13 @@ private:
 
     void drawAlgo2(juce::Graphics& g, juce::Rectangle<int> r, juce::Colour lc, juce::Colour oc, juce::Colour tc)
     {
+        // Algorithm 2: 1→4, 2→3→4 (only OP4 is carrier)
         float x1 = r.getX() + 15, x2 = r.getX() + 45, x3 = r.getX() + 75;
         float y1 = r.getY() + 20, y2 = r.getCentreY(), y3 = r.getBottom() - 20;
         drawLine(g, x1, y1, x3, y2, lc);
         drawLine(g, x1, y3, x2, y3, lc);
         drawLine(g, x2, y3, x3, y2, lc);
+        drawOutputConnection(g, x3, y2, r, lc);  // OP4 to output
         drawOp(g, x1, y1, 1, oc, tc);
         drawOp(g, x1, y3, 2, oc, tc);
         drawOp(g, x2, y3, 3, oc, tc);
@@ -175,11 +189,13 @@ private:
 
     void drawAlgo3(juce::Graphics& g, juce::Rectangle<int> r, juce::Colour lc, juce::Colour oc, juce::Colour tc)
     {
+        // Algorithm 3: 1→2→4, 3→4 (only OP4 is carrier)
         float x1 = r.getX() + 15, x2 = r.getX() + 45, x3 = r.getX() + 75;
         float y1 = r.getY() + 20, y2 = r.getCentreY(), y3 = r.getBottom() - 20;
         drawLine(g, x1, y1, x2, y1, lc);
         drawLine(g, x2, y1, x3, y2, lc);
         drawLine(g, x1, y3, x3, y2, lc);
+        drawOutputConnection(g, x3, y2, r, lc);  // OP4 to output
         drawOp(g, x1, y1, 1, oc, tc);
         drawOp(g, x2, y1, 2, oc, tc);
         drawOp(g, x1, y3, 3, oc, tc);
@@ -188,10 +204,13 @@ private:
 
     void drawAlgo4(juce::Graphics& g, juce::Rectangle<int> r, juce::Colour lc, juce::Colour oc, juce::Colour tc)
     {
+        // Algorithm 4: 1→2, 3→4 (OP2 and OP4 are carriers)
         float x1 = r.getX() + 20, x2 = r.getX() + 50;
         float y1 = r.getY() + 20, y2 = r.getBottom() - 20;
         drawLine(g, x1, y1, x2, y1, lc);
         drawLine(g, x1, y2, x2, y2, lc);
+        drawOutputConnection(g, x2, y1, r, lc);  // OP2 to output
+        drawOutputConnection(g, x2, y2, r, lc);  // OP4 to output
         drawOp(g, x1, y1, 1, oc, tc);
         drawOp(g, x2, y1, 2, oc, tc);
         drawOp(g, x1, y2, 3, oc, tc);
@@ -200,12 +219,16 @@ private:
 
     void drawAlgo5(juce::Graphics& g, juce::Rectangle<int> r, juce::Colour lc, juce::Colour oc, juce::Colour tc)
     {
+        // Algorithm 5: 1→2,3,4 (OP2, OP3, OP4 are carriers)
         float x1 = r.getX() + 20, x2 = r.getX() + 60;
         float cy = r.getCentreY();
         float y1 = r.getY() + 10, y2 = cy, y3 = r.getBottom() - 10;
         drawLine(g, x1, cy, x2, y1, lc);
         drawLine(g, x1, cy, x2, y2, lc);
         drawLine(g, x1, cy, x2, y3, lc);
+        drawOutputConnection(g, x2, y1, r, lc);  // OP2 to output
+        drawOutputConnection(g, x2, y2, r, lc);  // OP3 to output
+        drawOutputConnection(g, x2, y3, r, lc);  // OP4 to output
         drawOp(g, x1, cy, 1, oc, tc);
         drawOp(g, x2, y1, 2, oc, tc);
         drawOp(g, x2, y2, 3, oc, tc);
@@ -214,9 +237,13 @@ private:
 
     void drawAlgo6(juce::Graphics& g, juce::Rectangle<int> r, juce::Colour lc, juce::Colour oc, juce::Colour tc)
     {
+        // Algorithm 6: 1→2, 3, 4 (OP2, OP3, OP4 are carriers)
         float x1 = r.getX() + 20, x2 = r.getX() + 50;
         float y1 = r.getY() + 10, y2 = r.getCentreY(), y3 = r.getBottom() - 10;
         drawLine(g, x1, y1, x2, y1, lc);
+        drawOutputConnection(g, x2, y1, r, lc);  // OP2 to output
+        drawOutputConnection(g, x2, y2, r, lc);  // OP3 to output
+        drawOutputConnection(g, x2, y3, r, lc);  // OP4 to output
         drawOp(g, x1, y1, 1, oc, tc);
         drawOp(g, x2, y1, 2, oc, tc);
         drawOp(g, x2, y2, 3, oc, tc);
@@ -225,8 +252,13 @@ private:
 
     void drawAlgo7(juce::Graphics& g, juce::Rectangle<int> r, juce::Colour lc, juce::Colour oc, juce::Colour tc)
     {
+        // Algorithm 7: 1, 2, 3, 4 (all are carriers)
         float cx = r.getCentreX();
         float y1 = r.getY() + 10, y2 = r.getY() + 35, y3 = r.getY() + 60, y4 = r.getY() + 85;
+        drawOutputConnection(g, cx, y1, r, lc);  // OP1 to output
+        drawOutputConnection(g, cx, y2, r, lc);  // OP2 to output
+        drawOutputConnection(g, cx, y3, r, lc);  // OP3 to output
+        drawOutputConnection(g, cx, y4, r, lc);  // OP4 to output
         drawOp(g, cx, y1, 1, oc, tc);
         drawOp(g, cx, y2, 2, oc, tc);
         drawOp(g, cx, y3, 3, oc, tc);

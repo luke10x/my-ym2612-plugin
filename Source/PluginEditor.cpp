@@ -46,11 +46,11 @@ ARM2612AudioProcessorEditor::ARM2612AudioProcessorEditor(
         // SSG-EG selector manages its own focus
     }
 
-    // New layout: Level above EG, then EG, then SSG below EG, then envelope params, then extras
-    const int opAreaH = kHeaderH + kSliderH + kEnvH + kComboH + 
+    // New layout: Level above EG, then EG, then SSG below EG (same height as EG), then envelope params, then extras
+    const int opAreaH = kHeaderH + kSliderH + kEnvH + kEnvH +  // SSG same height as envelope
                         NUM_SLIDERS_AFTER_ENV * kSliderH + NUM_SLIDERS_EXTRA * kSliderH + 
                         kSliderH + kToggleH + kPad * 2;
-    const int totalH  = kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin + kKeyboardH;
+    const int totalH  = kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin + kKeyboardH + kMargin;
     setSize(720, totalH);
     setResizable(true, true);
     setResizeLimits(600, totalH, 1600, totalH + 100);
@@ -344,17 +344,7 @@ void ARM2612AudioProcessorEditor::paint(juce::Graphics& g)
                    x, static_cast<float>(opAreaY + opAreaH - 6), 1.0f);
     }
 
-    // Alternating row backgrounds for sliders after envelope
-    // Skip Level (before env) and SSG (right after env)
-    // Shade AR, SL, RR, DT, RS (indices 1, 3, 5, 7, and RS row)
-    const int firstEnvSliderY = opAreaY + kHeaderH + kSliderH + kEnvH + kComboH;
-    for (int s = 0; s < NUM_SLIDERS_AFTER_ENV + NUM_SLIDERS_EXTRA + 1; s++) {  // +1 for RS
-        if (s % 2 == 0) {  // Shade even rows: 0=AR, 2=SL, 4=RR, 6=DT
-            int rowY = firstEnvSliderY + s * kSliderH;
-            g.setColour(juce::Colour(0x08FFFFFF));
-            g.fillRect(static_cast<int>(kMargin * 0.5f), rowY, getWidth() - kMargin, kSliderH);
-        }
-    }
+    // Plain background - no zebra stripes
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

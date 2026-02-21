@@ -94,14 +94,14 @@ private:
     juce::String getSsgModeName(int mode)
     {
         const char* names[] = {
-            "Down Down Down",
-            "Down.",
-            "Down Up Down Up", 
-            "Down UP",
-            "Up Up Up",
-            "Up.",
-            "Up Down Up Down",
-            "Up DOWN"
+            "Down Down Down",  // Mode 0: \\\
+            "Down.",           // Mode 1: \__
+            "Down Up Down Up", // Mode 2: \/\/
+            "Down UP",         // Mode 3: \/_
+            "Up Up Up",        // Mode 4: ///
+            "Up.",             // Mode 5: /__
+            "Up Down Up Down", // Mode 6: /\/\
+            "Up DOWN"          // Mode 7: /\__
         };
         return (mode >= 0 && mode < 8) ? names[mode] : "";
     }
@@ -154,12 +154,13 @@ private:
                 }
                 else
                 {
-                    // Down-Down pattern (repeat)
-                    path.startNewSubPath(x1 + segmentW * 1.2f, yTop);
+                    // Down-Down pattern (repeat with vertical returns)
+                    path.lineTo(x1 + segmentW, yBottom);  // First decay
+                    path.lineTo(x1 + segmentW, yTop);     // Vertical jump back
                     path.lineTo(x1 + segmentW * 2, yBottom);
-                    path.startNewSubPath(x1 + segmentW * 2.2f, yTop);
+                    path.lineTo(x1 + segmentW * 2, yTop);
                     path.lineTo(x1 + segmentW * 3, yBottom);
-                    path.startNewSubPath(x1 + segmentW * 3.2f, yTop);
+                    path.lineTo(x1 + segmentW * 3, yTop);
                     path.lineTo(x1 + segmentW * 4, yBottom);
                 }
             }
@@ -188,12 +189,13 @@ private:
                 }
                 else
                 {
-                    // Up-Up pattern (repeat)
-                    path.startNewSubPath(x1 + segmentW * 1.2f, yBottom);
+                    // Up-Up pattern (repeat with vertical returns)
+                    path.lineTo(x1 + segmentW, yTop);     // First attack
+                    path.lineTo(x1 + segmentW, yBottom); // Vertical jump back
                     path.lineTo(x1 + segmentW * 2, yTop);
-                    path.startNewSubPath(x1 + segmentW * 2.2f, yBottom);
+                    path.lineTo(x1 + segmentW * 2, yBottom);
                     path.lineTo(x1 + segmentW * 3, yTop);
-                    path.startNewSubPath(x1 + segmentW * 3.2f, yBottom);
+                    path.lineTo(x1 + segmentW * 3, yBottom);
                     path.lineTo(x1 + segmentW * 4, yTop);
                 }
             }
