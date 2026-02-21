@@ -2,6 +2,104 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
+static void drawSsgMode(juce::Graphics& g, int dropdownIdx, juce::Rectangle<int> area)
+{
+    if (dropdownIdx == 0)
+    {
+        // "None" 
+        g.setColour(juce::Colour(0xFF556070));
+        g.setFont(juce::Font(12.0f));
+        g.drawText("None", area, juce::Justification::centred, false);
+        return;
+    }
+
+    int mode = dropdownIdx - 1;  // Convert dropdown index to SSG mode (0-7)
+    
+    g.setColour(juce::Colour(0xFF4fc3f7));
+    
+    // Use consistent sizing for both popup and dropdown
+    float margin = 10.0f;
+    float x1 = area.getX() + margin;
+    float x2 = area.getRight() - margin;
+    float yTop = area.getY() + margin;
+    float yBottom = area.getBottom() - margin;
+    float yMid = area.getCentreY();
+    
+    juce::Path path;
+    
+    float segmentW = (x2 - x1) / 4.0f;
+    
+    if (mode == 0) {
+        // Down-Down pattern (repeat with vertical returns)
+        path.startNewSubPath(x1, yBottom);
+        path.lineTo(x1, yTop);
+        path.lineTo(x1 + segmentW, yBottom);  // First decay
+        path.lineTo(x1 + segmentW, yTop);     // Vertical jump back
+        path.lineTo(x1 + segmentW * 2, yBottom);
+        path.lineTo(x1 + segmentW * 2, yTop);
+        path.lineTo(x1 + segmentW * 3, yBottom);
+        path.lineTo(x1 + segmentW * 3, yTop);
+        path.lineTo(x1 + segmentW * 4, yBottom);
+    }
+    if (mode == 1) {
+        // Down.
+        path.startNewSubPath(x1, yBottom);
+        path.lineTo(x1, yTop);
+        path.lineTo(x1 + segmentW, yBottom);
+        path.lineTo(x1 + segmentW * 4, yBottom);
+    }
+    if (mode == 2) {
+        // Down Up Down Up
+        path.startNewSubPath(x1, yBottom);
+        path.lineTo(x1, yTop);
+        path.lineTo(x1 + segmentW, yBottom);
+        path.lineTo(x1 + segmentW * 2, yTop);
+        path.lineTo(x1 + segmentW * 3, yBottom);
+        path.lineTo(x1 + segmentW * 4, yTop);
+    }
+    if (mode == 3) {
+        // Down Up
+        path.startNewSubPath(x1, yBottom);
+        path.lineTo(x1, yTop);
+        path.lineTo(x1 + segmentW, yBottom);
+        path.lineTo(x1 + segmentW, yTop);
+        path.lineTo(x1 + segmentW * 4, yTop);
+    }
+    if (mode == 4) {
+        path.startNewSubPath(x1, yBottom);
+        path.lineTo(x1 + segmentW, yTop);  // First decay
+        path.lineTo(x1 + segmentW, yBottom);     // Vertical jump back
+        path.lineTo(x1 + segmentW * 2, yTop);
+        path.lineTo(x1 + segmentW * 2, yBottom);
+        path.lineTo(x1 + segmentW * 3, yTop);
+        path.lineTo(x1 + segmentW * 3, yBottom);
+        path.lineTo(x1 + segmentW * 4, yTop);
+    }
+    if (mode == 5) {
+        // Up.
+        path.startNewSubPath(x1, yBottom);
+        path.lineTo(x1 + segmentW, yTop);
+        path.lineTo(x1 + segmentW * 4, yTop);
+    }
+    if (mode == 6) {
+        // Up Down Up Down
+        path.startNewSubPath(x1, yBottom);
+        path.lineTo(x1 + segmentW, yTop);
+        path.lineTo(x1 + segmentW * 2, yBottom);
+        path.lineTo(x1 + segmentW * 3, yTop);
+        path.lineTo(x1 + segmentW * 4, yBottom);
+    }
+    if (mode == 7) {
+        // Down.
+        path.startNewSubPath(x1, yBottom);
+        path.lineTo(x1 + segmentW, yTop);
+        path.lineTo(x1 + segmentW, yBottom);
+        path.lineTo(x1 + segmentW * 4, yBottom);
+    }
+    
+    g.strokePath(path, juce::PathStrokeType(2.0f));
+    
+}
 // ─────────────────────────────────────────────────────────────────────────────
 // SsgEgPopup - Popup window showing all 9 SSG-EG modes (Off + 8 modes)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -94,127 +192,18 @@ private:
     juce::String getSsgModeName(int mode)
     {
         const char* names[] = {
-            "Down Down Down",  // Mode 0: \\\
-            "Down.",           // Mode 1: \__
-            "Down Up Down Up", // Mode 2: \/\/
-            "Down UP",         // Mode 3: \/_
-            "Up Up Up",        // Mode 4: ///
-            "Up.",             // Mode 5: /__
-            "Up Down Up Down", // Mode 6: /\/\
-            "Up DOWN"          // Mode 7: /\__
+            "Down Down Down",  // Mode 0: 
+            "Down.",           // Mode 1:
+            "Down Up Down Up", // Mode 2:
+            "Down UP",         // Mode 3:
+            "Up Up Up",        // Mode 4:
+            "Up.",             // Mode 5:
+            "Up Down Up Down", // Mode 6: 
+            "Up DOWN"          // Mode 7:
         };
-        return (mode >= 0 && mode < 8) ? names[mode] : "";
+        return (mode >= 0 && mode < 8) ? names[mode] : "?";
     }
 
-    void drawSsgMode(juce::Graphics& g, int dropdownIdx, juce::Rectangle<int> area)
-    {
-        if (dropdownIdx == 0)
-        {
-            // "None" 
-            g.setColour(juce::Colour(0xFF556070));
-            g.setFont(juce::Font(12.0f));
-            g.drawText("None", area, juce::Justification::centred, false);
-            return;
-        }
-
-        int mode = dropdownIdx - 1;  // Convert dropdown index to SSG mode (0-7)
-        
-        g.setColour(juce::Colour(0xFF4fc3f7));
-        
-        // Use consistent sizing for both popup and dropdown
-        float margin = 10.0f;
-        float x1 = area.getX() + margin;
-        float x2 = area.getRight() - margin;
-        float yTop = area.getY() + margin;
-        float yBottom = area.getBottom() - margin;
-        float yMid = area.getCentreY();
-        
-        juce::Path path;
-        
-        // Bit flags: mode = (hold<<2) | (attack<<1) | alternate
-        bool alternate = (mode & 1) != 0;
-        bool attack = (mode & 2) != 0;
-        bool hold = (mode & 4) != 0;
-        
-        float segmentW = (x2 - x1) / (hold ? 2.0f : 4.0f);
-        
-        if (!attack)  // Start from top (decay)
-        {
-            path.startNewSubPath(x1, yTop);
-            path.lineTo(x1 + segmentW, yBottom);
-            
-            if (!hold)
-            {
-                if (alternate)
-                {
-                    // Down-Up pattern
-                    path.lineTo(x1 + segmentW * 2, yTop);
-                    path.lineTo(x1 + segmentW * 3, yBottom);
-                    path.lineTo(x1 + segmentW * 4, yTop);
-                }
-                else
-                {
-                    // Down-Down pattern (repeat with vertical returns)
-                    path.lineTo(x1 + segmentW, yBottom);  // First decay
-                    path.lineTo(x1 + segmentW, yTop);     // Vertical jump back
-                    path.lineTo(x1 + segmentW * 2, yBottom);
-                    path.lineTo(x1 + segmentW * 2, yTop);
-                    path.lineTo(x1 + segmentW * 3, yBottom);
-                    path.lineTo(x1 + segmentW * 3, yTop);
-                    path.lineTo(x1 + segmentW * 4, yBottom);
-                }
-            }
-            else
-            {
-                // Hold at bottom or top
-                if (alternate)
-                    path.lineTo(x2, yTop);  // Hold high
-                else
-                    path.lineTo(x2, yBottom);  // Hold low
-            }
-        }
-        else  // Start from bottom (attack)
-        {
-            path.startNewSubPath(x1, yBottom);
-            path.lineTo(x1 + segmentW, yTop);
-            
-            if (!hold)
-            {
-                if (alternate)
-                {
-                    // Up-Down pattern
-                    path.lineTo(x1 + segmentW * 2, yBottom);
-                    path.lineTo(x1 + segmentW * 3, yTop);
-                    path.lineTo(x1 + segmentW * 4, yBottom);
-                }
-                else
-                {
-                    // Up-Up pattern (repeat with vertical returns)
-                    path.lineTo(x1 + segmentW, yTop);     // First attack
-                    path.lineTo(x1 + segmentW, yBottom); // Vertical jump back
-                    path.lineTo(x1 + segmentW * 2, yTop);
-                    path.lineTo(x1 + segmentW * 2, yBottom);
-                    path.lineTo(x1 + segmentW * 3, yTop);
-                    path.lineTo(x1 + segmentW * 3, yBottom);
-                    path.lineTo(x1 + segmentW * 4, yTop);
-                }
-            }
-            else
-            {
-                // Hold at bottom or top
-                if (alternate)
-                    path.lineTo(x2, yBottom);  // Hold low
-                else
-                    path.lineTo(x2, yTop);  // Hold high
-            }
-        }
-        
-        g.strokePath(path, juce::PathStrokeType(2.0f));
-        
-        // Draw axis
-        g.setColour(juce::Colour(0xFF556070));
-        g.drawLine(x1, yBottom, x2, yBottom, 1.0f);  // Time axis
-    }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -255,11 +244,6 @@ public:
         // Draw current mode diagram using same method as popup
         auto diagramArea = boxArea.reduced(4);
         drawSsgMode(g, selectedMode, diagramArea);
-        
-        // Dropdown arrow (bottom right corner)
-        g.setColour(juce::Colour(0xFF556070));
-        g.setFont(juce::Font(8.0f));
-        g.drawText("▼", boxArea.withLeft(boxArea.getRight() - 12), juce::Justification::centred, false);
     }
 
     void mouseDown(const juce::MouseEvent&) override
@@ -279,89 +263,4 @@ public:
 
 private:
     int selectedMode = 0;
-
-    // Use exact same drawing code as popup for consistency
-    void drawSsgMode(juce::Graphics& g, int dropdownIdx, juce::Rectangle<int> area)
-    {
-        if (dropdownIdx == 0)
-        {
-            // "None"
-            g.setColour(juce::Colour(0xFF888888));
-            g.setFont(juce::Font(11.0f));
-            g.drawText("None", area, juce::Justification::centred, false);
-            return;
-        }
-
-        int mode = dropdownIdx - 1;
-        
-        g.setColour(juce::Colour(0xFF4fc3f7));
-        
-        // Same margins as popup for consistent appearance
-        float margin = 6.0f;
-        float x1 = area.getX() + margin;
-        float x2 = area.getRight() - margin - 12;  // Leave space for arrow
-        float yTop = area.getY() + margin;
-        float yBottom = area.getBottom() - margin;
-        
-        juce::Path path;
-        
-        bool alternate = (mode & 1) != 0;
-        bool attack = (mode & 2) != 0;
-        bool hold = (mode & 4) != 0;
-        
-        float segmentW = (x2 - x1) / (hold ? 1.5f : 3.0f);
-        
-        if (!attack)
-        {
-            path.startNewSubPath(x1, yTop);
-            path.lineTo(x1 + segmentW, yBottom);
-            
-            if (!hold)
-            {
-                if (alternate)
-                {
-                    path.lineTo(x1 + segmentW * 2, yTop);
-                    path.lineTo(x1 + segmentW * 3, yBottom);
-                }
-                else
-                {
-                    path.startNewSubPath(x1 + segmentW * 1.1f, yTop);
-                    path.lineTo(x1 + segmentW * 2, yBottom);
-                    path.startNewSubPath(x1 + segmentW * 2.1f, yTop);
-                    path.lineTo(x1 + segmentW * 3, yBottom);
-                }
-            }
-            else
-            {
-                path.lineTo(x2, alternate ? yTop : yBottom);
-            }
-        }
-        else
-        {
-            path.startNewSubPath(x1, yBottom);
-            path.lineTo(x1 + segmentW, yTop);
-            
-            if (!hold)
-            {
-                if (alternate)
-                {
-                    path.lineTo(x1 + segmentW * 2, yBottom);
-                    path.lineTo(x1 + segmentW * 3, yTop);
-                }
-                else
-                {
-                    path.startNewSubPath(x1 + segmentW * 1.1f, yBottom);
-                    path.lineTo(x1 + segmentW * 2, yTop);
-                    path.startNewSubPath(x1 + segmentW * 2.1f, yBottom);
-                    path.lineTo(x1 + segmentW * 3, yTop);
-                }
-            }
-            else
-            {
-                path.lineTo(x2, alternate ? yBottom : yTop);
-            }
-        }
-        
-        g.strokePath(path, juce::PathStrokeType(1.5f));
-    }
 };
