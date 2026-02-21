@@ -317,7 +317,17 @@ void ARM2612AudioProcessorEditor::paint(juce::Graphics& g)
     g.fillRect(0.0f, titleR.getBottom() - 2.0f, static_cast<float>(getWidth()), 2.0f);
     g.setFont(juce::Font(19.0f, juce::Font::bold));
     g.drawText("YM2612 Synth", titleR.withTrimmedBottom(14.0f), juce::Justification::centred, false);
-    g.setColour(dim); g.setFont(juce::Font(10.0f));
+    
+    // Version display in top-right corner
+    g.setColour(dim);
+    g.setFont(juce::Font(9.0f));
+#ifdef PLUGIN_VERSION_STRING
+    g.drawText("v" + juce::String(PLUGIN_VERSION_STRING), 
+               titleR.reduced(8, 4), juce::Justification::topRight, false);
+#else
+    g.drawText("v dev", titleR.reduced(8, 4), juce::Justification::topRight, false);
+#endif
+    
     // Title bar (no subtitle)
 
     // Global panel background

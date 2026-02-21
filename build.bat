@@ -48,7 +48,7 @@ echo.
 echo Build complete!
 echo.
 echo To install VST3, copy:
-echo   %BUILD_DIR%\ARM2612_artefacts\%BUILD_TYPE%\VST3\*.vst3
+echo   %BUILD_DIR%\ARM2612_artefacts\%BUILD_TYPE%\VST3\ARM2612.vst3
 echo to:
 echo   C:\Program Files\Common Files\VST3\
 endlocal

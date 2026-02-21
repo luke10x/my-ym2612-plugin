@@ -14,6 +14,27 @@ project(ARM2612 VERSION 1.0.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Version handling - use CI_VERSION if provided (from GitHub Actions), otherwise use "dev"
+if(DEFINED ENV{CI_VERSION})
+    set(PLUGIN_VERSION $ENV{CI_VERSION})
+    message(STATUS "Building version: ${PLUGIN_VERSION} (from CI)")
+else()
+    set(PLUGIN_VERSION "dev")
+    message(STATUS "Building version: ${PLUGIN_VERSION} (local build)")
+endif()
+
+# Extract version components for JUCE (only if not "dev")
+if(NOT PLUGIN_VERSION STREQUAL "dev")
+    string(REGEX MATCH "^v?([0-9]+)\\.([0-9]+)\\.([0-9]+)" _ ${PLUGIN_VERSION})
+    set(VERSION_MAJOR ${CMAKE_MATCH_1})
+    set(VERSION_MINOR ${CMAKE_MATCH_2})
+    set(VERSION_PATCH ${CMAKE_MATCH_3})
+else()
+    set(VERSION_MAJOR 0)
+    set(VERSION_MINOR 0)
+    set(VERSION_PATCH 0)
+endif()
+
 include(FetchContent)
 
 # ─── JUCE ────────────────────────────────────────────────────────────────────
@@ -83,11 +104,17 @@ juce_add_plugin(ARM2612
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
 
     PRODUCT_NAME            "ARM2612"
-    VERSION                 "1.0.0"
+    VERSION                 "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}"
     DESCRIPTION             "YM2612 (Sega Mega Drive) FM Synth"
 
     VST3_CATEGORIES         "Instrument" "Synths"
     AU_MAIN_TYPE            "kAudioUnitType_MusicDevice"
+)
+
+# Add version string as a compile definition
+target_compile_definitions(ARM2612
+    PUBLIC
+        PLUGIN_VERSION_STRING="${PLUGIN_VERSION}"
 )
 
 # ─── Sources ─────────────────────────────────────────────────────────────────
