@@ -17,7 +17,7 @@ static void drawAlgorithm(juce::Graphics& g, int algo, juce::Rectangle<int> area
     float h = area.getHeight();
     float opSize = 16.0f;
     
-    auto drawOp = [&](float cx, float cy, int num, bool hasModLabel, bool hasFeedback = false) {
+    auto drawOp = [&](float cx, float cy, int num, bool hasFeedback = false) {
         // Draw box for operator
         g.setColour(opCol);
         g.fillRect(cx - opSize/2, cy - opSize/2, opSize, opSize);
@@ -25,7 +25,7 @@ static void drawAlgorithm(juce::Graphics& g, int algo, juce::Rectangle<int> area
         // Draw feedback loop if applicable
         if (hasFeedback && num == 1) {
             g.setColour(lineCol);
-            float loopSize = opSize * 1.3f;
+            float loopSize = opSize * 0.8f;
             juce::Path loop;
             loop.addRoundedRectangle(cx - loopSize, cy - loopSize, loopSize*2, loopSize*2, 4.0f);
             g.strokePath(loop, juce::PathStrokeType(1.5f));
@@ -34,16 +34,8 @@ static void drawAlgorithm(juce::Graphics& g, int algo, juce::Rectangle<int> area
         // Operator number
         g.setColour(textCol);
         g.setFont(juce::Font(10.0f, juce::Font::bold));
-        g.drawText("S" + juce::String(num), cx - opSize/2, cy - opSize/2, opSize, opSize, 
+        g.drawText("" + juce::String(num), cx - opSize/2, cy - opSize/2, opSize, opSize, 
                    juce::Justification::centred, false);
-        
-        // // M or C label
-        if (hasModLabel) {
-            g.setFont(juce::Font(8.0f));
-            g.setColour(juce::Colour(0xFF888888));
-            g.drawText(hasModLabel ? "M" : "C", cx + opSize/2 + 2, cy - 4, 10, 8, 
-                       juce::Justification::centredLeft, false);
-        }
     };
     
     auto drawLine = [&](float x1, float y1, float x2, float y2) {
@@ -54,10 +46,15 @@ static void drawAlgorithm(juce::Graphics& g, int algo, juce::Rectangle<int> area
     auto drawOutput = [&](float x, float y) {
         g.setColour(lineCol);
         g.drawLine(x, y, area.getRight(), y, 1.5f);
+
+        // Output dot
+        g.setColour(outputCol);
+        g.fillEllipse(area.getRight() - 4, y - 4, 8, 8);
+        
     };
     
     // Calculate positions based on official diagram layout
-    float margin = 15.0f;
+    float margin = 5.0f;
     float usableW = w - margin * 2;
     float usableH = h - margin * 2;
     float baseX = area.getX() + margin;
@@ -78,10 +75,10 @@ static void drawAlgorithm(juce::Graphics& g, int algo, juce::Rectangle<int> area
         drawLine(x3 + opSize/2, y, x4 - opSize/2, y);
         drawOutput(x4 + opSize/2, y);
         
-        drawOp(x1, y, 1, true, true);
-        drawOp(x2, y, 2, true);
-        drawOp(x3, y, 3, true);
-        drawOp(x4, y, 4, false); // C
+        drawOp(x1, y, 1,  true);
+        drawOp(x2, y, 2);
+        drawOp(x3, y, 3);
+        drawOp(x4, y, 4); // C
         break;
     }
     
@@ -101,10 +98,10 @@ static void drawAlgorithm(juce::Graphics& g, int algo, juce::Rectangle<int> area
         drawLine(x3 + opSize/2, yMid, x4 - opSize/2, yMid);
         drawOutput(x4 + opSize/2, yMid);
         
-        drawOp(x1, y1, 1, true, true);
-        drawOp(x1, y2, 2, true);
-        drawOp(x3, yMid, 3, true);
-        drawOp(x4, yMid, 4, false); // C
+        drawOp(x1, y1, 1, true);
+        drawOp(x1, y2, 2);
+        drawOp(x3, yMid, 3);
+        drawOp(x4, yMid, 4); // C
         break;
     }
     
@@ -124,10 +121,10 @@ static void drawAlgorithm(juce::Graphics& g, int algo, juce::Rectangle<int> area
         drawLine(x3 + opSize/2, y2, x4 - opSize/2, yMid);
         drawOutput(x4 + opSize/2, yMid);
         
-        drawOp(x1, y1, 1, true, true);
-        drawOp(x1, y2, 2, true);
-        drawOp(x3, y2, 3, true);
-        drawOp(x4, yMid, 4, false); // C
+        drawOp(x1, y1, 1, true);
+        drawOp(x1, y2, 2);
+        drawOp(x3, y2, 3);
+        drawOp(x4, yMid, 4); // C
         break;
     }
     
@@ -147,10 +144,10 @@ static void drawAlgorithm(juce::Graphics& g, int algo, juce::Rectangle<int> area
         drawLine(x1 + opSize/2, y3, x4 - opSize/2, yMid);
         drawOutput(x4 + opSize/2, yMid);
         
-        drawOp(x1, y1, 1, true, true);
-        drawOp(x2, y1, 2, true);
-        drawOp(x1, y3, 3, true);
-        drawOp(x4, yMid, 4, false); // C
+        drawOp(x1, y1, 1, true);
+        drawOp(x2, y1, 2);
+        drawOp(x1, y3, 3);
+        drawOp(x4, yMid, 4); // C
         break;
     }
     
@@ -161,6 +158,7 @@ static void drawAlgorithm(juce::Graphics& g, int algo, juce::Rectangle<int> area
         float y2 = baseY + usableH * 0.65f;
         float xOut = area.getRight();
         
+        float y = (y2 + y1 )/ 2.0f;
         // Top stack: S1→S2
         drawLine(x1 + opSize/2, y1, x2 - opSize/2, y1);
         drawOutput(x2 + opSize/2, y1);
@@ -169,10 +167,10 @@ static void drawAlgorithm(juce::Graphics& g, int algo, juce::Rectangle<int> area
         drawLine(x1 + opSize/2, y2, x2 - opSize/2, y2);
         drawOutput(x2 + opSize/2, y2);
         
-        drawOp(x1, y1, 1, true, true);
-        drawOp(x2, y1, 2, false); // C
-        drawOp(x1, y2, 3, true);
-        drawOp(x2, y2, 4, false); // C
+        drawOp(x1, y1, 1, true);
+        drawOp(x2, y1, 2); // C
+        drawOp(x1, y2, 3);
+        drawOp(x2, y2, 4); // C
         break;
     }
     
@@ -195,10 +193,10 @@ static void drawAlgorithm(juce::Graphics& g, int algo, juce::Rectangle<int> area
         drawLine(x1 + opSize/2, y2, x2 - opSize/2, y3);
         drawOutput(x2 + opSize/2, y3);
         
-        drawOp(x1, y2, 1, true, true);
-        drawOp(x2, y1, 2, false); // C
-        drawOp(x2, y2, 3, false); // C
-        drawOp(x2, y3, 4, false); // C
+        drawOp(x1, y2, 1, true);
+        drawOp(x2, y1, 2); // C
+        drawOp(x2, y2, 3); // C
+        drawOp(x2, y3, 4); // C
         break;
     }
     
@@ -208,6 +206,7 @@ static void drawAlgorithm(juce::Graphics& g, int algo, juce::Rectangle<int> area
         float y1 = baseY + usableH * 0.25f;
         float y2 = baseY + usableH * 0.5f;
         float y3 = baseY + usableH * 0.75f;
+        
         
         // S1 to S2
         drawLine(x1 + opSize/2, y1, x2 - opSize/2, y1);
@@ -219,10 +218,10 @@ static void drawAlgorithm(juce::Graphics& g, int algo, juce::Rectangle<int> area
         // S4 standalone
         drawOutput(x2 + opSize/2, y3);
         
-        drawOp(x1, y1, 1, true, true);
-        drawOp(x2, y1, 2, false); // C
-        drawOp(x2, y2, 3, false); // C
-        drawOp(x2, y3, 4, false); // C
+        drawOp(x1, y1, 1, true);
+        drawOp(x2, y1, 2); // C
+        drawOp(x2, y2, 3); // C
+        drawOp(x2, y3, 4); // C
         break;
     }
     
@@ -247,10 +246,10 @@ static void drawAlgorithm(juce::Graphics& g, int algo, juce::Rectangle<int> area
         g.setColour(outputCol);
         g.fillEllipse(xOut - 4, yOut - 4, 8, 8);
         
-        drawOp(x1, y, 1, false, true); // C
-        drawOp(x2, y, 2, false); // C
-        drawOp(x3, y, 3, false); // C
-        drawOp(x4, y, 4, false); // C
+        drawOp(x1, y, 1, true); // C
+        drawOp(x2, y, 2); // C
+        drawOp(x3, y, 3); // C
+        drawOp(x4, y, 4); // C
         break;
     }
     }
@@ -294,7 +293,7 @@ public:
             }
 
             // Draw algorithm diagram
-            auto diagramArea = box.reduced(8).withTrimmedBottom(20);
+            auto diagramArea = box.reduced(1).withTrimmedBottom(10);
             drawAlgorithm(g, i, diagramArea);
 
             // Algorithm number
