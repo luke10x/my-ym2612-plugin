@@ -3,7 +3,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared drawing function for algorithm diagrams
+// Shared drawing function for algorithm diagrams - matches official YM2612 spec
 // ─────────────────────────────────────────────────────────────────────────────
 
 static void drawAlgorithm(juce::Graphics& g, int algo, juce::Rectangle<int> area)
@@ -13,153 +13,244 @@ static void drawAlgorithm(juce::Graphics& g, int algo, juce::Rectangle<int> area
     juce::Colour textCol(0xFF000000);
     juce::Colour outputCol(0xFF00D4AA);
     
-    auto drawOp = [&](float cx, float cy, int num, bool hasFeedback = false) {
+    float w = area.getWidth();
+    float h = area.getHeight();
+    float opSize = 16.0f;
+    
+    auto drawOp = [&](float cx, float cy, int num, bool hasModLabel, bool hasFeedback = false) {
+        // Draw box for operator
         g.setColour(opCol);
-        g.fillEllipse(cx - 9, cy - 9, 18, 18);
+        g.fillRect(cx - opSize/2, cy - opSize/2, opSize, opSize);
         
-        // Draw feedback ring around OP1 if applicable
+        // Draw feedback loop if applicable
         if (hasFeedback && num == 1) {
-            g.setColour(outputCol);
-            g.drawEllipse(cx - 12, cy - 12, 24, 24, 2.0f);
+            g.setColour(lineCol);
+            float loopSize = opSize * 1.3f;
+            juce::Path loop;
+            loop.addRoundedRectangle(cx - loopSize, cy - loopSize, loopSize*2, loopSize*2, 4.0f);
+            g.strokePath(loop, juce::PathStrokeType(1.5f));
         }
         
+        // Operator number
         g.setColour(textCol);
-        g.setFont(juce::Font(11.0f, juce::Font::bold));
-        g.drawText(juce::String(num), int(cx - 9), int(cy - 9), 18, 18, juce::Justification::centred);
+        g.setFont(juce::Font(10.0f, juce::Font::bold));
+        g.drawText("S" + juce::String(num), cx - opSize/2, cy - opSize/2, opSize, opSize, 
+                   juce::Justification::centred, false);
+        
+        // // M or C label
+        if (hasModLabel) {
+            g.setFont(juce::Font(8.0f));
+            g.setColour(juce::Colour(0xFF888888));
+            g.drawText(hasModLabel ? "M" : "C", cx + opSize/2 + 2, cy - 4, 10, 8, 
+                       juce::Justification::centredLeft, false);
+        }
     };
     
     auto drawLine = [&](float x1, float y1, float x2, float y2) {
         g.setColour(lineCol);
-        g.drawLine(x1, y1, x2, y2, 2.0f);
+        g.drawLine(x1, y1, x2, y2, 1.5f);
     };
     
-    auto drawOutput = [&](float opX, float opY) {
-        float outputX = area.getRight();
+    auto drawOutput = [&](float x, float y) {
         g.setColour(lineCol);
-        g.drawLine(opX, opY, outputX, opY, 2.0f);
+        g.drawLine(x, y, area.getRight(), y, 1.5f);
     };
     
-    // 3:2 aspect ratio layout
-    float w = area.getWidth();
-    float h = area.getHeight();
-    float cy = area.getCentreY();
+    // Calculate positions based on official diagram layout
+    float margin = 15.0f;
+    float usableW = w - margin * 2;
+    float usableH = h - margin * 2;
+    float baseX = area.getX() + margin;
+    float baseY = area.getY() + margin;
     
     switch (algo)
     {
-    case 0: { // 1→2→3→4 (only OP4 carrier)
-        float x1 = area.getX() + w*0.15f, x2 = area.getX() + w*0.35f, 
-              x3 = area.getX() + w*0.55f, x4 = area.getX() + w*0.75f;
-        drawLine(x1, cy, x2, cy);
-        drawLine(x2, cy, x3, cy);
-        drawLine(x3, cy, x4, cy);
-        drawOutput(x4, cy);
-        drawOp(x1, cy, 1, true);
-        drawOp(x2, cy, 2);
-        drawOp(x3, cy, 3);
-        drawOp(x4, cy, 4);
+    case 0: { // Four serial connection mode: S1→S2→S3→S4
+        float spacing = usableW / 4.5f;
+        float y = baseY + usableH / 2;
+        float x1 = baseX + spacing * 0.7f;
+        float x2 = baseX + spacing * 1.7f;
+        float x3 = baseX + spacing * 2.7f;
+        float x4 = baseX + spacing * 3.7f;
+        
+        drawLine(x1 + opSize/2, y, x2 - opSize/2, y);
+        drawLine(x2 + opSize/2, y, x3 - opSize/2, y);
+        drawLine(x3 + opSize/2, y, x4 - opSize/2, y);
+        drawOutput(x4 + opSize/2, y);
+        
+        drawOp(x1, y, 1, true, true);
+        drawOp(x2, y, 2, true);
+        drawOp(x3, y, 3, true);
+        drawOp(x4, y, 4, false); // C
         break;
     }
-    case 1: { // 1→2←3, 2→4 (only OP4 carrier)
-        float x1 = area.getX() + w*0.2f, x2 = area.getX() + w*0.5f, x3 = area.getX() + w*0.8f;
-        float y1 = area.getY() + h*0.3f, y2 = cy, y3 = area.getY() + h*0.7f;
-        drawLine(x1, y1, x2, y2);
-        drawLine(x1, y3, x2, y2);
-        drawLine(x2, y2, x3, y2);
-        drawOutput(x3, y2);
-        drawOp(x1, y1, 1, true);
-        drawOp(x1, y3, 3);
-        drawOp(x2, y2, 2);
-        drawOp(x3, y2, 4);
+    
+    case 1: { // Three double modulation serial: S1+S2→S3→S4
+        float x1 = baseX + usableW * 0.25f;
+        float x3 = baseX + usableW * 0.55f;
+        float x4 = baseX + usableW * 0.85f;
+        float y1 = baseY + usableH * 0.3f;
+        float y2 = baseY + usableH * 0.7f;
+        float yMid = baseY + usableH * 0.5f;
+        
+        // S1 feedback loop and connection to S3
+        drawLine(x1 + opSize/2, y1, x3 - opSize/2, yMid);
+        // S2 to S3
+        drawLine(x1 + opSize/2, y2, x3 - opSize/2, yMid);
+        // S3 to S4
+        drawLine(x3 + opSize/2, yMid, x4 - opSize/2, yMid);
+        drawOutput(x4 + opSize/2, yMid);
+        
+        drawOp(x1, y1, 1, true, true);
+        drawOp(x1, y2, 2, true);
+        drawOp(x3, yMid, 3, true);
+        drawOp(x4, yMid, 4, false); // C
         break;
     }
-    case 2: { // 1→4, 2→3→4 (only OP4 carrier)
-        float x1 = area.getX() + w*0.2f, x2 = area.getX() + w*0.5f, x3 = area.getX() + w*0.8f;
-        float y1 = area.getY() + h*0.3f, y2 = cy, y3 = area.getY() + h*0.7f;
-        drawLine(x1, y1, x3, y2);
-        drawLine(x1, y3, x2, y3);
-        drawLine(x2, y3, x3, y2);
-        drawOutput(x3, y2);
-        drawOp(x1, y1, 1, true);
-        drawOp(x1, y3, 2);
-        drawOp(x2, y3, 3);
-        drawOp(x3, y2, 4);
+    
+    case 2: { // Double modulation mode 1: S1→S4, S2→S3→S4
+        float x1 = baseX + usableW * 0.25f;
+        float x3 = baseX + usableW * 0.55f;
+        float x4 = baseX + usableW * 0.85f;
+        float y1 = baseY + usableH * 0.3f;
+        float y2 = baseY + usableH * 0.7f;
+        float yMid = baseY + usableH * 0.5f;
+        
+        // S1 to S4
+        drawLine(x1 + opSize/2, y1, x4 - opSize/2, yMid);
+        // S2 to S3
+        drawLine(x1 + opSize/2, y2, x3 - opSize/2, y2);
+        // S3 to S4
+        drawLine(x3 + opSize/2, y2, x4 - opSize/2, yMid);
+        drawOutput(x4 + opSize/2, yMid);
+        
+        drawOp(x1, y1, 1, true, true);
+        drawOp(x1, y2, 2, true);
+        drawOp(x3, y2, 3, true);
+        drawOp(x4, yMid, 4, false); // C
         break;
     }
-    case 3: { // 1→2→4, 3→4 (only OP4 carrier)
-        float x1 = area.getX() + w*0.2f, x2 = area.getX() + w*0.5f, x3 = area.getX() + w*0.8f;
-        float y1 = area.getY() + h*0.3f, y2 = cy, y3 = area.getY() + h*0.7f;
-        drawLine(x1, y1, x2, y1);
-        drawLine(x2, y1, x3, y2);
-        drawLine(x1, y3, x3, y2);
-        drawOutput(x3, y2);
-        drawOp(x1, y1, 1, true);
-        drawOp(x2, y1, 2);
-        drawOp(x1, y3, 3);
-        drawOp(x3, y2, 4);
+    
+    case 3: { // Double modulation mode 2: S1→S2→S4, S3→S4
+        float x1 = baseX + usableW * 0.25f;
+        float x2 = baseX + usableW * 0.5f;
+        float x4 = baseX + usableW * 0.85f;
+        float y1 = baseY + usableH * 0.3f;
+        float y3 = baseY + usableH * 0.7f;
+        float yMid = baseY + usableH * 0.5f;
+        
+        // S1 to S2
+        drawLine(x1 + opSize/2, y1, x2 - opSize/2, y1);
+        // S2 to S4
+        drawLine(x2 + opSize/2, y1, x4 - opSize/2, yMid);
+        // S3 to S4
+        drawLine(x1 + opSize/2, y3, x4 - opSize/2, yMid);
+        drawOutput(x4 + opSize/2, yMid);
+        
+        drawOp(x1, y1, 1, true, true);
+        drawOp(x2, y1, 2, true);
+        drawOp(x1, y3, 3, true);
+        drawOp(x4, yMid, 4, false); // C
         break;
     }
-    case 4: { // 1→2, 3→4 (OP2 and OP4 carriers)
-        float x1 = area.getX() + w*0.3f, x2 = area.getX() + w*0.7f;
-        float y1 = area.getY() + h*0.35f, y2 = area.getY() + h*0.65f;
-        drawLine(x1, y1, x2, y1);
-        drawLine(x1, y2, x2, y2);
-        drawOutput(x2, y1);
-        drawOutput(x2, y2);
-        drawOp(x1, y1, 1, true);
-        drawOp(x2, y1, 2);
-        drawOp(x1, y2, 3);
-        drawOp(x2, y2, 4);
+    
+    case 4: { // Two serial connection and two parallel modes: S1→S2, S3→S4
+        float x1 = baseX + usableW * 0.3f;
+        float x2 = baseX + usableW * 0.65f;
+        float y1 = baseY + usableH * 0.35f;
+        float y2 = baseY + usableH * 0.65f;
+        float xOut = area.getRight();
+        
+        // Top stack: S1→S2
+        drawLine(x1 + opSize/2, y1, x2 - opSize/2, y1);
+        drawOutput(x2 + opSize/2, y1);
+        
+        // Bottom stack: S3→S4
+        drawLine(x1 + opSize/2, y2, x2 - opSize/2, y2);
+        drawOutput(x2 + opSize/2, y2);
+        
+        drawOp(x1, y1, 1, true, true);
+        drawOp(x2, y1, 2, false); // C
+        drawOp(x1, y2, 3, true);
+        drawOp(x2, y2, 4, false); // C
         break;
     }
-    case 5: { // 1→2,3,4 (OP2, OP3, OP4 carriers)
-        float x1 = area.getX() + w*0.25f, x2 = area.getX() + w*0.75f;
-        float y1 = area.getY() + h*0.25f, y2 = cy, y3 = area.getY() + h*0.75f;
-        drawLine(x1, y2, x2, y1);
-        drawLine(x1, y2, x2, y2);
-        drawLine(x1, y2, x2, y3);
-        drawOutput(x2, y1);
-        drawOutput(x2, y2);
-        drawOutput(x2, y3);
-        drawOp(x1, y2, 1, true);
-        drawOp(x2, y1, 2);
-        drawOp(x2, y2, 3);
-        drawOp(x2, y3, 4);
+    
+    case 5: { // Common modulation 3 parallel mode: S1→S2,S3,S4
+        float x1 = baseX + usableW * 0.25f;
+        float x2 = baseX + usableW * 0.7f;
+        float y1 = baseY + usableH * 0.25f;
+        float y2 = baseY + usableH * 0.5f;
+        float y3 = baseY + usableH * 0.75f;
+        
+        // S1 to S2
+        drawLine(x1 + opSize/2, y2, x2 - opSize/2, y1);
+        drawOutput(x2 + opSize/2, y1);
+        
+        // S1 to S3
+        drawLine(x1 + opSize/2, y2, x2 - opSize/2, y2);
+        drawOutput(x2 + opSize/2, y2);
+        
+        // S1 to S4
+        drawLine(x1 + opSize/2, y2, x2 - opSize/2, y3);
+        drawOutput(x2 + opSize/2, y3);
+        
+        drawOp(x1, y2, 1, true, true);
+        drawOp(x2, y1, 2, false); // C
+        drawOp(x2, y2, 3, false); // C
+        drawOp(x2, y3, 4, false); // C
         break;
     }
-    case 6: { // 1→2, 3, 4 (OP2, OP3, OP4 carriers)
-        float x1 = area.getX() + w*0.3f, x2 = area.getX() + w*0.7f;
-        float y1 = area.getY() + h*0.25f, y2 = cy, y3 = area.getY() + h*0.75f;
-        drawLine(x1, y1, x2, y1);
-        drawOutput(x2, y1);
-        drawOutput(x2, y2);
-        drawOutput(x2, y3);
-        drawOp(x1, y1, 1, true);
-        drawOp(x2, y1, 2);
-        drawOp(x2, y2, 3);
-        drawOp(x2, y3, 4);
+    
+    case 6: { // Two serial connection + two sine mode: S1→S2, S3, S4
+        float x1 = baseX + usableW * 0.3f;
+        float x2 = baseX + usableW * 0.6f;
+        float y1 = baseY + usableH * 0.25f;
+        float y2 = baseY + usableH * 0.5f;
+        float y3 = baseY + usableH * 0.75f;
+        
+        // S1 to S2
+        drawLine(x1 + opSize/2, y1, x2 - opSize/2, y1);
+        drawOutput(x2 + opSize/2, y1);
+        
+        // S3 standalone
+        drawOutput(x2 + opSize/2, y2);
+        
+        // S4 standalone
+        drawOutput(x2 + opSize/2, y3);
+        
+        drawOp(x1, y1, 1, true, true);
+        drawOp(x2, y1, 2, false); // C
+        drawOp(x2, y2, 3, false); // C
+        drawOp(x2, y3, 4, false); // C
         break;
     }
-    case 7: { // All parallel - horizontal layout with output below
-        float x1 = area.getX() + w*0.15f, x2 = area.getX() + w*0.35f,
-              x3 = area.getX() + w*0.55f, x4 = area.getX() + w*0.75f;
-        float yOps = area.getY() + h*0.35f;
-        float yOut = area.getY() + h*0.75f;
+    
+    case 7: { // Four parallel sine synthesis mode
+        float spacing = usableW / 5.0f;
+        float y = baseY + usableH * 0.4f;
+        float yOut = baseY + usableH * 0.75f;
         float xOut = area.getCentreX();
         
-        // All ops connect down to output dot
-        drawLine(x1, yOps, xOut, yOut);
-        drawLine(x2, yOps, xOut, yOut);
-        drawLine(x3, yOps, xOut, yOut);
-        drawLine(x4, yOps, xOut, yOut);
+        float x1 = baseX + spacing;
+        float x2 = baseX + spacing * 2;
+        float x3 = baseX + spacing * 3;
+        float x4 = baseX + spacing * 4;
+        
+        // All connect to output below
+        drawLine(x1, y + opSize/2, xOut, yOut);
+        drawLine(x2, y + opSize/2, xOut, yOut);
+        drawLine(x3, y + opSize/2, xOut, yOut);
+        drawLine(x4, y + opSize/2, xOut, yOut);
         
         // Output dot
         g.setColour(outputCol);
-        g.fillEllipse(xOut - 5, yOut - 5, 10, 10);
+        g.fillEllipse(xOut - 4, yOut - 4, 8, 8);
         
-        drawOp(x1, yOps, 1, true);
-        drawOp(x2, yOps, 2);
-        drawOp(x3, yOps, 3);
-        drawOp(x4, yOps, 4);
+        drawOp(x1, y, 1, false, true); // C
+        drawOp(x2, y, 2, false); // C
+        drawOp(x3, y, 3, false); // C
+        drawOp(x4, y, 4, false); // C
         break;
     }
     }
@@ -202,31 +293,14 @@ public:
                 }
             }
 
-            // Draw algorithm diagram (3:2 aspect ratio)
+            // Draw algorithm diagram
             auto diagramArea = box.reduced(8).withTrimmedBottom(20);
-            // Force 3:2 aspect ratio
-            int targetH = diagramArea.getWidth() * 2 / 3;
-            if (diagramArea.getHeight() > targetH) {
-                int diff = diagramArea.getHeight() - targetH;
-                diagramArea = diagramArea.withTrimmedTop(diff / 2).withTrimmedBottom(diff / 2);
-            }
             drawAlgorithm(g, i, diagramArea);
-            
-            // Output dot on right side (for algos 0-6)
-            if (i < 7) {
-                float dotX = box.getRight() - 10;
-                float dotY = box.getCentreY();
-                g.setColour(juce::Colour(0xFF00D4AA));
-                g.fillEllipse(dotX - 5, dotY - 5, 10, 10);
-                juce::Path arrow;
-                arrow.addTriangle(dotX + 6, dotY, dotX, dotY - 5, dotX, dotY + 5);
-                g.fillPath(arrow);
-            }
 
             // Algorithm number
             g.setColour(juce::Colour(0xFF556070));
             g.setFont(juce::Font(9.0f));
-            g.drawText("Algo " + juce::String(i), box.withTrimmedTop(box.getHeight() - 18),
+            g.drawText(juce::String(i), box.withTrimmedTop(box.getHeight() - 18),
                        juce::Justification::centred, false);
         }
     }
@@ -299,20 +373,15 @@ public:
         g.setFont(juce::Font(11.0f));
         g.drawText("Algorithm", labelArea, juce::Justification::centredLeft, false);
         
-        // Dropdown box below label (square)
+        // Dropdown box below label
         auto boxArea = bounds.reduced(0, 2);
         g.setColour(juce::Colour(0xFF161625));
         g.fillRoundedRectangle(boxArea.toFloat(), 4.0f);
         g.setColour(juce::Colour(0xFF2a2a3e));
         g.drawRoundedRectangle(boxArea.toFloat(), 4.0f, 1.0f);
         
-        // Draw current algorithm diagram using same method as popup (3:2 aspect ratio)
+        // Draw current algorithm diagram using same method as popup
         auto diagramArea = boxArea.reduced(8);
-        int targetH = diagramArea.getWidth() * 2 / 3;
-        if (diagramArea.getHeight() > targetH) {
-            int diff = diagramArea.getHeight() - targetH;
-            diagramArea = diagramArea.withTrimmedTop(diff / 2).withTrimmedBottom(diff / 2);
-        }
         drawAlgorithm(g, selectedAlgo, diagramArea);
         
         // Dropdown arrow (bottom right corner)
