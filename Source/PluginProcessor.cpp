@@ -10,19 +10,21 @@ ARM2612AudioProcessor::createParameterLayout()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    // Defaults for Algo 4: (1→2)+(3→4), feedback 5
-    // TL: 0=loud, 127=silent (Furnace convention)
-    // Modulators (OP1, OP3) should be loud (low values)
-    const int defaultTL[4]  = { 0, 63, 0, 63 };
-    const int defaultAR[4]  = { 31, 31, 31, 31  };
-    const int defaultDR[4]  = {  5,  5,  5,  5  };
-    const int defaultSR[4]  = {  0,  0,  0,  0  };
-    const int defaultSL[4]  = {  1,  1,  1,  1  };
-    const int defaultRR[4]  = { 10, 10, 10, 10  };
-    const int defaultMUL[4] = {  1,  1,  1,  1  };
-    const int defaultDT[4]  = {  0,  0,  0,  0  };
-    const int defaultRS[4]  = {  0,  0,  0,  0  };
-    const int defaultAM[4]  = {  0,  0,  0,  0  };
+    // Defaults from Furnace default patch
+    // OP1: TL=42, AR=31, DR=8, SL=15, SR=0, RR=3, MUL=5
+    // OP2: TL=18, AR=31, DR=10, SL=15, SR=0, RR=4, MUL=1
+    // OP3: TL=48, AR=31, DR=4, SL=11, SR=0, RR=1, MUL=1
+    // OP4: TL=2, AR=31, DR=9, SL=15, SR=0, RR=9, MUL=1
+    const int defaultTL[4]  = { 42, 18, 48,  2 };
+    const int defaultAR[4]  = { 31, 31, 31, 31 };
+    const int defaultDR[4]  = {  8, 10,  4,  9 };
+    const int defaultSR[4]  = {  0,  0,  0,  0 };
+    const int defaultSL[4]  = { 15, 15, 11, 15 };
+    const int defaultRR[4]  = {  3,  4,  1,  9 };
+    const int defaultMUL[4] = {  5,  1,  1,  1 };
+    const int defaultDT[4]  = {  0,  0,  0,  0 };
+    const int defaultRS[4]  = {  0,  0,  0,  0 };
+    const int defaultAM[4]  = {  0,  0,  0,  0 };
     const int defaultSSGEn[4]   = { 0, 0, 0, 0 };
     const int defaultSSGMode[4] = { 0, 0, 0, 0 };
 

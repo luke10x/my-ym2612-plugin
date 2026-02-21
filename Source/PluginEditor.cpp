@@ -3,7 +3,6 @@
 using namespace YmColors;
 
 static const char* OP_NAME[4] = { "OP 1", "OP 2", "OP 3", "OP 4" };
-static const char* OP_ROLE[4] = { "Modulator", "Carrier", "Modulator", "Carrier" };
 static const bool  OP_CARRIER[4] = { false, true, false, true };
 
 static const juce::String* PARAM_IDS[8] = {
@@ -236,12 +235,6 @@ void ARM2612AudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
     col.nameLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(col.nameLabel);
 
-    col.roleLabel.setText(OP_ROLE[opIdx], juce::dontSendNotification);
-    col.roleLabel.setFont(juce::Font(10.0f));
-    col.roleLabel.setColour(juce::Label::textColourId, dim);
-    col.roleLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(col.roleLabel);
-
     col.envDisplay.setParams(
         dynamic_cast<juce::RangedAudioParameter*>(audioProcessor.apvts.getParameter(OP_AR_ID[opIdx])),
         dynamic_cast<juce::RangedAudioParameter*>(audioProcessor.apvts.getParameter(OP_DR_ID[opIdx])),
@@ -325,7 +318,7 @@ void ARM2612AudioProcessorEditor::paint(juce::Graphics& g)
     g.setFont(juce::Font(19.0f, juce::Font::bold));
     g.drawText("YM2612 Synth", titleR.withTrimmedBottom(14.0f), juce::Justification::centred, false);
     g.setColour(dim); g.setFont(juce::Font(10.0f));
-    g.drawText("FM Synthesis  ·  6 Voices", titleR.withTrimmedTop(26.0f), juce::Justification::centred, false);
+    // Title bar (no subtitle)
 
     // Global panel background
     const int globalY = kTitleH + kMargin;
@@ -438,9 +431,8 @@ void ARM2612AudioProcessorEditor::resized()
         const int cx = static_cast<int>(kMargin * 0.5f) + op * colW;
         int y = opAreaY + kPad;
 
-        // Header
-        ops[op].nameLabel.setBounds(cx + 2, y, colW - 4, 20);
-        ops[op].roleLabel.setBounds(cx + 2, y + 20, colW - 4, 14); 
+        // Header - operator name only
+        ops[op].nameLabel.setBounds(cx + 2, y + 8, colW - 4, 20);
         y += kHeaderH;
 
         const int labelW = 52, sliderX = cx + labelW + 2, sliderW = colW - labelW - 6;

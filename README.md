@@ -4,8 +4,6 @@
 
 A high-fidelity VST3/AU/Standalone software synthesizer plugin that accurately emulates the Yamaha YM2612 FM chip used in the Sega Mega Drive/Genesis. Built with JUCE and powered by Aaron Giles' ymfm emulation core.
 
-**Authors:** Arminas ir Lukas
-
 ---
 
 ## Features
@@ -178,14 +176,14 @@ All YM2612 parameters are preserved including SSG-EG modes, operator enable flag
 
 ### YM2612 Chip Specifications
 - **Synthesis:** 6-operator FM (4 operators per channel)
-- **Polyphony:** 6 voices (plugin implements all 6)
+- **Polyphony:** Hardware-accurate voice allocation
 - **Sample Rate:** 53,267 Hz (chip native), resampled to host rate
 - **LFO:** Global modulation with per-operator sensitivity
 - **SSG-EG:** Advanced envelope modes from SSG chip integration
 
 ### Plugin Specifications
 - **Format:** VST3, AU, Standalone
-- **Polyphony:** 6 voices (hardware-accurate)
+- **Polyphony:** Hardware-accurate
 - **MIDI:** Full support, velocity sensitivity
 - **Latency:** Minimal (dependent on buffer size)
 - **CPU:** Low (ymfm is highly optimized)
@@ -193,8 +191,6 @@ All YM2612 parameters are preserved including SSG-EG modes, operator enable flag
 ---
 
 ## Credits
-
-**Authors:** Arminas ir Lukas
 
 **Built With:**
 - [JUCE](https://juce.com/) - Audio plugin framework

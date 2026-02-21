@@ -152,7 +152,6 @@ private:
 
     struct OpColumn {
         juce::Label      nameLabel;
-        juce::Label      roleLabel;
         EnvelopeDisplay  envDisplay;
         SliderRow        rows[NUM_SLIDERS];
         SliderRow        rsRow;      // Rate Scale
