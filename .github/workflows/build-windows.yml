@@ -30,13 +30,16 @@ jobs:
         with:
           cmake-version: '3.24.x'
 
-      - name: Extract version from tag
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Set version for build
         shell: pwsh
         run: |
-          $version = $env:GITHUB_REF -replace 'refs/tags/', ''
-          echo "CI_VERSION=$version" >> $env:GITHUB_ENV
-          echo "Building version: $version"
+          if ($env:GITHUB_REF -match '^refs/tags/') {
+            $version = $env:GITHUB_REF -replace 'refs/tags/', ''
+            echo "CI_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            echo "Building version: $version"
+          } else {
+            echo "Building development version"
+          }
 
       - name: Build plugin (Release)
         shell: cmd
