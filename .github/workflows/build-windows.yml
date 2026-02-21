@@ -30,6 +30,14 @@ jobs:
         with:
           cmake-version: '3.24.x'
 
+      - name: Extract version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF -replace 'refs/tags/', ''
+          echo "CI_VERSION=$version" >> $env:GITHUB_ENV
+          echo "Building version: $version"
+
       - name: Build plugin (Release)
         shell: cmd
         run: |
@@ -38,7 +46,7 @@ jobs:
       - name: Upload VST3 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SquareWaveSynth-Windows-VST3
+          name: ARM2612-Windows-VST3
           path: build_win/${{ env.PLUGIN_NAME }}_artefacts/Release/VST3/*.vst3
 
       - name: Create release archive (on tag)
@@ -46,13 +54,30 @@ jobs:
         shell: pwsh
         run: |
           $version = $env:GITHUB_REF -replace 'refs/tags/', ''
-          Compress-Archive -Path build_win/${{ env.PLUGIN_NAME }}_artefacts/Release/VST3/*.vst3 -DestinationPath "${{ env.PLUGIN_NAME }}-$version-Windows-VST3.zip"
+          
+          # Copy and rename VST3 with version
+          $vst3Source = "build_win/${{ env.PLUGIN_NAME }}_artefacts/Release/VST3/${{ env.PLUGIN_NAME }}.vst3"
+          $vst3Dest = "build_win/${{ env.PLUGIN_NAME }}_artefacts/Release/VST3/${{ env.PLUGIN_NAME }}-$version.vst3"
+          Copy-Item -Recurse $vst3Source $vst3Dest
+          
+          # Create archive with versioned name
+          Compress-Archive -Path $vst3Dest -DestinationPath "${{ env.PLUGIN_NAME }}-$version-Windows-VST3.zip"
+          
+          # Also create Standalone archive
+          if (Test-Path "build_win/${{ env.PLUGIN_NAME }}_artefacts/Release/Standalone") {
+            $standaloneExe = "build_win/${{ env.PLUGIN_NAME }}_artefacts/Release/Standalone/${{ env.PLUGIN_NAME }}.exe"
+            $standaloneDest = "build_win/${{ env.PLUGIN_NAME }}_artefacts/Release/Standalone/${{ env.PLUGIN_NAME }}-$version.exe"
+            Copy-Item $standaloneExe $standaloneDest
+            Compress-Archive -Path $standaloneDest -DestinationPath "${{ env.PLUGIN_NAME }}-$version-Windows-Standalone.zip"
+          }
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ env.PLUGIN_NAME }}-*.zip
+          files: |
+            ${{ env.PLUGIN_NAME }}-*-Windows-VST3.zip
+            ${{ env.PLUGIN_NAME }}-*-Windows-Standalone.zip
           draft: false
           prerelease: false
         env:
