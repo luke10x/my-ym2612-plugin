@@ -42,14 +42,15 @@ A high-fidelity VST3/AU/Standalone software synthesizer plugin that accurately e
 Download the latest release for your platform from the [Releases](https://github.com/yourusername/ARM2612/releases) page.
 
 **macOS:**
-- **AU**: Copy `ARM2612.component` to `~/Library/Audio/Plug-Ins/Components/`
-- **VST3**: Copy `ARM2612.vst3` to `~/Library/Audio/Plug-Ins/VST3/`
+- **AU**: Unzip and copy `ARM2612-vX.X.X.component` to `~/Library/Audio/Plug-Ins/Components/`
+- **VST3**: Unzip and copy `ARM2612-vX.X.X.vst3` to `~/Library/Audio/Plug-Ins/VST3/`
+- **Standalone**: Unzip and drag `ARM2612-vX.X.X.app` to Applications folder
 
 **Windows:**
-- **VST3**: Copy `ARM2612.vst3` to `C:\Program Files\Common Files\VST3\`
+- **VST3**: Unzip and copy `ARM2612-vX.X.X.vst3` to `C:\Program Files\Common Files\VST3\`
+- **Standalone**: Unzip and run `ARM2612-vX.X.X.exe` directly
 
-**Linux:**
-- **VST3**: Copy `ARM2612.vst3` to `~/.vst3/`
+**Note:** Each release includes the version number in the filename (e.g., `ARM2612-v1.0.0.vst3`). This prevents conflicts when installing multiple versions.
 
 ### Building from Source
 
