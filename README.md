@@ -4,6 +4,12 @@
 
 A high-fidelity VST3/AU/Standalone software synthesizer plugin that accurately emulates the Yamaha YM2612 FM chip used in the Sega Mega Drive/Genesis. Built with JUCE and powered by Aaron Giles' ymfm emulation core.
 
+## 🎬 Demo
+
+[![ARM2612 Demo](https://img.youtube.com/vi/UymoMBYGNIw/0.jpg)](https://www.youtube.com/shorts/UymoMBYGNIw)
+
+*Click to watch a quick demonstration of ARM2612 in action*
+
 ---
 
 ## Features
@@ -38,19 +44,14 @@ A high-fidelity VST3/AU/Standalone software synthesizer plugin that accurately e
 
 ## Installation
 
-### Pre-built Binaries
-Download the latest release for your platform from the [Releases](https://github.com/yourusername/ARM2612/releases) page.
-
-**macOS:**
-- **AU**: Unzip and copy `ARM2612-vX.X.X.component` to `~/Library/Audio/Plug-Ins/Components/`
-- **VST3**: Unzip and copy `ARM2612-vX.X.X.vst3` to `~/Library/Audio/Plug-Ins/VST3/`
-- **Standalone**: Unzip and drag `ARM2612-vX.X.X.app` to Applications folder
+### Pre-built Binaries (Windows Only)
+Download the latest Windows release from the [Releases](https://github.com/yourusername/ARM2612/releases) page.
 
 **Windows:**
 - **VST3**: Unzip and copy `ARM2612-vX.X.X.vst3` to `C:\Program Files\Common Files\VST3\`
 - **Standalone**: Unzip and run `ARM2612-vX.X.X.exe` directly
 
-**Note:** Each release includes the version number in the filename (e.g., `ARM2612-v1.0.0.vst3`). This prevents conflicts when installing multiple versions.
+**Note:** macOS builds (AU/VST3) require local building due to code-signing requirements (see below).
 
 ### Building from Source
 
@@ -59,28 +60,71 @@ Download the latest release for your platform from the [Releases](https://github
 - C++17 compiler (Xcode 14+, Visual Studio 2019+, GCC 9+)
 - Git
 
-**macOS:**
+**macOS (for AU/VST3/Standalone):**
 ```bash
 git clone https://github.com/yourusername/ARM2612.git
 cd ARM2612
+chmod +x build.sh
 ./build.sh
 ```
 
-**Windows:**
+After building, you'll find:
+- **AU**: `build/ARM2612_artefacts/Release/AU/ARM2612.component`
+  - Install: `cp -R build/ARM2612_artefacts/Release/AU/ARM2612.component ~/Library/Audio/Plug-Ins/Components/`
+  - Compatible with: Logic Pro, GarageBand, MainStage, Ableton Live, etc.
+- **VST3**: `build/ARM2612_artefacts/Release/VST3/ARM2612.vst3`
+  - Install: `cp -R build/ARM2612_artefacts/Release/VST3/ARM2612.vst3 ~/Library/Audio/Plug-Ins/VST3/`
+  - Compatible with: Reaper, Ableton Live, FL Studio 20+, Bitwig, etc.
+- **Standalone**: `build/ARM2612_artefacts/Release/Standalone/ARM2612.app`
+  - Install: `cp -R build/ARM2612_artefacts/Release/Standalone/ARM2612.app /Applications/`
+  - Runs independently without a DAW
+
+**macOS Code Signing (Optional but Recommended):**
+To avoid Gatekeeper warnings, you can self-sign the plugins:
+```bash
+# Sign AU
+codesign --force --deep --sign - build/ARM2612_artefacts/Release/AU/ARM2612.component
+
+# Sign VST3
+codesign --force --deep --sign - build/ARM2612_artefacts/Release/VST3/ARM2612.vst3
+
+# Sign Standalone
+codesign --force --deep --sign - build/ARM2612_artefacts/Release/Standalone/ARM2612.app
+```
+
+After signing, copy to the appropriate locations as shown above.
+
+**Requirements:**
+- CMake 3.22+
+- C++17 compiler (Xcode 14+, Visual Studio 2019+, GCC 9+)
+- Git
+
+**Windows (for VST3/Standalone):**
 ```cmd
 git clone https://github.com/yourusername/ARM2612.git
 cd ARM2612
 build.bat
 ```
 
-**Linux:**
+After building, you'll find:
+- **VST3**: `build_win\ARM2612_artefacts\Release\VST3\ARM2612.vst3`
+  - Install: Copy to `C:\Program Files\Common Files\VST3\`
+- **Standalone**: `build_win\ARM2612_artefacts\Release\Standalone\ARM2612.exe`
+  - Run directly or copy to a convenient location
+
+**Linux (for VST3/Standalone):**
 ```bash
 git clone https://github.com/yourusername/ARM2612.git
 cd ARM2612
+chmod +x build.sh
 ./build.sh
 ```
 
-Built plugins will be in `build/ARM2612_artefacts/Release/` (macOS/Linux) or `build_win\ARM2612_artefacts\Release\` (Windows).
+After building, you'll find:
+- **VST3**: `build/ARM2612_artefacts/Release/VST3/ARM2612.vst3`
+  - Install: `cp -R build/ARM2612_artefacts/Release/VST3/ARM2612.vst3 ~/.vst3/`
+- **Standalone**: `build/ARM2612_artefacts/Release/Standalone/ARM2612`
+  - Run directly or copy to `/usr/local/bin/`
 
 ---
 
@@ -173,6 +217,32 @@ All YM2612 parameters are preserved including SSG-EG modes, operator enable flag
 
 ---
 
+## Alternative YM2612 Plugins
+
+If you're looking for other YM2612 emulation options:
+
+- **[ADLplug](https://github.com/jpcima/ADLplug)** - Multi-chip FM synthesizer supporting YM2612, OPL3, and more
+- **[Genny](https://github.com/superjoebob/genny)** - Another open-source YM2612 VST plugin
+- **[RYM2612](https://www.inphonik.com/products/rym2612-iconic-fm-synthesizer/)** - Commercial plugin by Inphonik with enhanced features
+
+Each has different strengths - try them all to find what works best for your workflow!
+
+---
+
+## Learning More About YM2612
+
+Want to dive deeper into how this chip works?
+
+**Technical Resources:**
+- **[Emulating the YM2612](https://jsgroth.dev/blog/posts/emulating-ym2612-part-7/)** by jsgroth - Comprehensive series on YM2612 emulation techniques
+- **[Atsushi Eno's Research](https://atsushieno.github.io/)** - Deep technical documentation on FM synthesis and the YM2612
+
+**The ymfm Library:**
+- ARM2612 uses [ymfm](https://github.com/aaronsgiles/ymfm) by Aaron Giles for cycle-accurate emulation
+- One of the most accurate YM2612 cores available
+
+---
+
 ## Technical Details
 
 ### YM2612 Chip Specifications
@@ -199,9 +269,11 @@ All YM2612 parameters are preserved including SSG-EG modes, operator enable flag
 - [Furnace](https://github.com/tildearrow/furnace) - .fui format inspiration
 
 **Special Thanks:**
-- Aaron Giles for the incredible ymfm emulation
-- tildearrow for Furnace and format documentation
-- Sega/Yamaha for the legendary YM2612 chip
+- **Aaron Giles** - For the incredible ymfm emulation core
+- **tildearrow** - For Furnace and format documentation
+- **jsgroth** - For detailed YM2612 emulation research and documentation
+- **Atsushi Eno** - For comprehensive FM synthesis and YM2612 technical resources
+- **Sega/Yamaha** - For the legendary YM2612 chip that powered the Mega Drive/Genesis
 
 ---
 
