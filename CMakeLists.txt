@@ -103,9 +103,9 @@ endif()
 
 juce_add_plugin(ARM2612
     COMPANY_NAME            "Arminas ir Lukas"
-    BUNDLE_ID               "com.arminasirlukas.arm2612"
+    BUNDLE_ID               "dev.luke10x.arm2612"
     PLUGIN_MANUFACTURER_CODE "ArLu"
-    PLUGIN_CODE              "Arm2"
+    PLUGIN_CODE              "2612"
 
     FORMATS                 ${PLUGIN_FORMATS}
 

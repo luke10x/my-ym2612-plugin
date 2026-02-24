@@ -101,7 +101,8 @@ private:
 // ─────────────────────────────────────────────────────────────────────────────
 class ARM2612AudioProcessorEditor
     : public juce::AudioProcessorEditor,
-      private juce::Timer
+      private juce::Timer,
+      private juce::AudioProcessorValueTreeState::Listener
 {
 public:
     explicit ARM2612AudioProcessorEditor(ARM2612AudioProcessor&);
@@ -109,6 +110,9 @@ public:
 
     void paint(juce::Graphics&) override;
     void resized() override;
+    
+    // AudioProcessorValueTreeState::Listener
+    void parameterChanged(const juce::String& parameterID, float newValue) override;
 
 private:
     ARM2612AudioProcessor& audioProcessor;
@@ -127,6 +131,7 @@ private:
     juce::Slider   feedbackSlider, amsSlider, fmsSlider, octaveSlider;
     juce::TextButton importBtn, exportBtn;
     juce::Label instrumentNameLabel;
+    juce::Label versionLabel;
     OscilloscopeDisplay oscilloscope;
     juce::ToggleButton phaseLockToggle;
 
@@ -194,7 +199,7 @@ private:
     void styleColumn(OpColumn& col, int opIdx);
     void setupGlobalControls();
 
-    static constexpr int kTitleH    = 46;  // Title bar with instrument name
+    static constexpr int kTitleH    = 0;  // No title bar - removed to save space
     static constexpr int kGlobalH   = 185;  // Tall enough for square algorithm selector
     static constexpr int kHeaderH   = 36;
     static constexpr int kEnvH      = 60;

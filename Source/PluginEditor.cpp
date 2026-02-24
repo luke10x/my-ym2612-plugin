@@ -64,6 +64,17 @@ ARM2612AudioProcessorEditor::ARM2612AudioProcessorEditor(
         oscilloscope.setPhaseLock(phaseLockToggle.getToggleState());
     };
     addAndMakeVisible(phaseLockToggle);
+    
+    // Version label (small, bottom of column 4)
+    versionLabel.setFont(juce::Font(8.5f));
+    versionLabel.setColour(juce::Label::textColourId, dim.darker(0.3f));
+    versionLabel.setJustificationType(juce::Justification::centredRight);
+#ifdef PLUGIN_VERSION_STRING
+    versionLabel.setText("v" + juce::String(PLUGIN_VERSION_STRING), juce::dontSendNotification);
+#else
+    versionLabel.setText("v dev", juce::dontSendNotification);
+#endif
+    addAndMakeVisible(versionLabel);
 
     startTimerHz(30);
 }
@@ -71,14 +82,21 @@ ARM2612AudioProcessorEditor::ARM2612AudioProcessorEditor(
 ARM2612AudioProcessorEditor::~ARM2612AudioProcessorEditor()
 {
     stopTimer();
+    
+    // Remove parameter listeners
+    audioProcessor.apvts.removeParameterListener(GLOBAL_ALGORITHM, this);
+    for (int i = 0; i < 4; ++i)
+    {
+        audioProcessor.apvts.removeParameterListener(OP_SSG_MODE_ID[i], this);
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 void ARM2612AudioProcessorEditor::setupGlobalControls()
 {
-    // Instrument name label (editable)
+    // Instrument name label (editable, in column 4)
     instrumentNameLabel.setText(audioProcessor.getInstrumentName(), juce::dontSendNotification);
-    instrumentNameLabel.setFont(juce::Font(13.0f, juce::Font::bold));
+    instrumentNameLabel.setFont(juce::Font(11.0f));
     instrumentNameLabel.setColour(juce::Label::textColourId, text);
     instrumentNameLabel.setColour(juce::Label::backgroundColourId, panel.darker(0.3f));
     instrumentNameLabel.setColour(juce::Label::outlineColourId, border);
@@ -97,6 +115,9 @@ void ARM2612AudioProcessorEditor::setupGlobalControls()
             param->setValueNotifyingHost(param->convertTo0to1(float(algo)));
     };
     addAndMakeVisible(algorithmSelector);
+    
+    // Add listener for algorithm parameter changes
+    audioProcessor.apvts.addParameterListener(GLOBAL_ALGORITHM, this);
 
     // Feedback
     feedbackSlider.setSliderStyle(juce::Slider::LinearHorizontal);
@@ -262,6 +283,9 @@ void ARM2612AudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
             param->setValueNotifyingHost(param->convertTo0to1(float(mode)));
     };
     addAndMakeVisible(col.ssgModeSelector);
+    
+    // Add listener for SSG-EG parameter changes
+    audioProcessor.apvts.addParameterListener(OP_SSG_MODE_ID[opIdx], this);
 }
 
 void ARM2612AudioProcessorEditor::setupSlider(SliderRow& row, const juce::String& paramId,
@@ -310,26 +334,6 @@ void ARM2612AudioProcessorEditor::paint(juce::Graphics& g)
 {
     g.fillAll(bg);
 
-    // Title bar
-    auto titleR = getLocalBounds().removeFromTop(kTitleH).toFloat();
-    g.setColour(panel); g.fillRect(titleR);
-    g.setColour(accent);
-    g.fillRect(0.0f, titleR.getBottom() - 2.0f, static_cast<float>(getWidth()), 2.0f);
-    g.setFont(juce::Font(19.0f, juce::Font::bold));
-    g.drawText("YM2612 Synth", titleR.withTrimmedBottom(14.0f), juce::Justification::centred, false);
-    
-    // Version display in top-right corner
-    g.setColour(dim);
-    g.setFont(juce::Font(9.0f));
-#ifdef PLUGIN_VERSION_STRING
-    g.drawText("v" + juce::String(PLUGIN_VERSION_STRING), 
-               titleR.reduced(8, 4), juce::Justification::topRight, false);
-#else
-    g.drawText("v dev", titleR.reduced(8, 4), juce::Justification::topRight, false);
-#endif
-    
-    // Title bar (no subtitle)
-
     // Global panel background
     const int globalY = kTitleH + kMargin;
     g.setColour(panel);
@@ -360,9 +364,6 @@ void ARM2612AudioProcessorEditor::paint(juce::Graphics& g)
 // ─────────────────────────────────────────────────────────────────────────────
 void ARM2612AudioProcessorEditor::resized()
 {
-    // Instrument name label in title bar
-    instrumentNameLabel.setBounds(getWidth() / 4, 4, getWidth() / 2, 20);
-
     // Global panel - 4 columns
     const int globalY = kTitleH + kMargin;
     const int colW = (getWidth() - kMargin) / 4;
@@ -399,14 +400,20 @@ void ARM2612AudioProcessorEditor::resized()
     globalFms.label.setFont(juce::Font(11.0f));
     fmsSlider.setBounds(col3X + 42, globalY + 84, colW - pad * 2 - 42, 22);
     
-    // Column 4: Import + Export + Phase Lock
+    // Column 4: Instrument Name + Import + Export + Phase Lock
     int col4X = static_cast<int>(kMargin * 0.5f) + colW * 3 + pad;
+    
+    // Instrument name at top of column 4
+    instrumentNameLabel.setBounds(col4X, globalY + 8, colW - pad * 2, 24);
     
     importBtn.setBounds(col4X, globalY + 40, colW - pad * 2, 28);
     exportBtn.setBounds(col4X, globalY + 74, colW - pad * 2, 28);
     
     // Phase lock toggle at bottom of column 4
     phaseLockToggle.setBounds(col4X, globalY + 112, colW - pad * 2, 24);
+    
+    // Version label at very bottom of column 4
+    versionLabel.setBounds(col4X, globalY + kGlobalH - 16, colW - pad * 2, 14);
     
     // Oscilloscope spanning columns 2-3 at bottom
     int scopeY = globalY + 112;  // Below all other controls
@@ -491,4 +498,26 @@ void ARM2612AudioProcessorEditor::resized()
     const int kbWidth = getWidth() - kMargin * 4;  // Inset from edges
     const int kbX = (getWidth() - kbWidth) / 2;
     midiKeyboard.setBounds(kbX, kbY, kbWidth, kKeyboardH);
+}
+
+void ARM2612AudioProcessorEditor::parameterChanged(const juce::String& parameterID, float newValue)
+{
+    // Update algorithm selector when parameter changes (from automation or preset load)
+    if (parameterID == GLOBAL_ALGORITHM)
+    {
+        juce::MessageManager::callAsync([this, value = static_cast<int>(newValue)]() {
+            algorithmSelector.setSelectedAlgorithm(value);
+        });
+    }
+    
+    // Update SSG-EG selectors when parameters change
+    for (int i = 0; i < 4; ++i)
+    {
+        if (parameterID == OP_SSG_MODE_ID[i])
+        {
+            juce::MessageManager::callAsync([this, i, value = static_cast<int>(newValue)]() {
+                ops[i].ssgModeSelector.setSelectedMode(value);
+            });
+        }
+    }
 }
