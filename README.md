@@ -25,14 +25,14 @@ A high-fidelity VST3/AU/Standalone software synthesizer plugin that accurately e
 ### Modern Plugin Interface
 - **Visual algorithm selector** - see operator routing at a glance
 - **Visual SSG-EG selector** - understand envelope shapes instantly
-- **Real-time oscilloscope** with phase-lock for waveform analysis
+- **Real-time oscilloscope** with phase-lock for stable waveform display
 - **Per-operator envelope displays** - visualize ADSR in real-time
 - **MIDI keyboard** with velocity sensitivity
 - **Dark, professional UI** optimized for music production
 
 ### Furnace Integration
-- **Import/Export .fui files** - seamlessly work with Furnace tracker
-- **Full parameter compatibility** - all YM2612 features supported
+- **Import/Export .fui files** - load and save OPN (YM2612) instrument patches from Furnace tracker
+- **OPN instrument support** - compatible with Furnace's YM2612 instrument format
 - **Preset management** - name and organize your patches
 
 ### Cross-Platform
@@ -45,7 +45,7 @@ A high-fidelity VST3/AU/Standalone software synthesizer plugin that accurately e
 ## Installation
 
 ### Pre-built Binaries (Windows Only)
-Download the latest Windows release from the [Releases](https://github.com/yourusername/ARM2612/releases) page.
+Download the latest Windows release from the [Releases](https://github.com/luke10x/arm2612/releases) page.
 
 **Windows:**
 - **VST3**: Unzip and copy `ARM2612-vX.X.X.vst3` to `C:\Program Files\Common Files\VST3\`
@@ -62,8 +62,8 @@ Download the latest Windows release from the [Releases](https://github.com/youru
 
 **macOS (for AU/VST3/Standalone):**
 ```bash
-git clone https://github.com/yourusername/ARM2612.git
-cd ARM2612
+git clone https://github.com/luke10x/arm2612.git
+cd arm2612
 chmod +x build.sh
 ./build.sh
 ```
@@ -101,8 +101,8 @@ After signing, copy to the appropriate locations as shown above.
 
 **Windows (for VST3/Standalone):**
 ```cmd
-git clone https://github.com/yourusername/ARM2612.git
-cd ARM2612
+git clone https://github.com/luke10x/arm2612.git
+cd arm2612
 build.bat
 ```
 
@@ -114,8 +114,8 @@ After building, you'll find:
 
 **Linux (for VST3/Standalone):**
 ```bash
-git clone https://github.com/yourusername/ARM2612.git
-cd ARM2612
+git clone https://github.com/luke10x/arm2612.git
+cd arm2612
 chmod +x build.sh
 ./build.sh
 ```
@@ -221,9 +221,10 @@ All YM2612 parameters are preserved including SSG-EG modes, operator enable flag
 
 If you're looking for other YM2612 emulation options:
 
-- **[ADLplug](https://github.com/jpcima/ADLplug)** - Multi-chip FM synthesizer supporting YM2612, OPL3, and more
-- **[Genny](https://github.com/superjoebob/genny)** - Another open-source YM2612 VST plugin
+- **[ADLplug](https://github.com/jpcima/ADLplug)** - Multi-chip FM synthesizer supporting YM2612, OPL3, and more. Note: Requires [patched version](https://github.com/atsushieno/ADLplug-AE) to build on macOS
+- **[Genny](https://github.com/superjoebob/genny)** - Open-source YM2612 VST plugin
 - **[RYM2612](https://www.inphonik.com/products/rym2612-iconic-fm-synthesizer/)** - Commercial plugin by Inphonik with enhanced features
+- **[FMDrive](https://www.alyjameslab.com/alyjameslabfmdrive.html)** - Sega Mega Drive/Genesis sound emulator by Aly James Lab
 
 Each has different strengths - try them all to find what works best for your workflow!
 
@@ -235,7 +236,10 @@ Want to dive deeper into how this chip works?
 
 **Technical Resources:**
 - **[Emulating the YM2612](https://jsgroth.dev/blog/posts/emulating-ym2612-part-7/)** by jsgroth - Comprehensive series on YM2612 emulation techniques
-- **[Atsushi Eno's Research](https://atsushieno.github.io/)** - Deep technical documentation on FM synthesis and the YM2612
+- **[Atsushi Eno's Blog](https://atsushieno.github.io/)** - Technical blog covering FM synthesis, AMD, and Emscripten builds of audio plugins
+
+**Learning FM Synthesis:**
+- **[FM Synthesis Tutorial](https://www.youtube.com/watch?v=wS8edjurjDw)** - DefleMask tutorial covering YM2612 FM programming fundamentals
 
 **The ymfm Library:**
 - ARM2612 uses [ymfm](https://github.com/aaronsgiles/ymfm) by Aaron Giles for cycle-accurate emulation
