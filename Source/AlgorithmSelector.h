@@ -16,18 +16,18 @@ static void drawAlgorithm (juce::Graphics& g, int algo, juce::Rectangle<int> are
 {
     juce::Colour lineCol  (0xFFAAAAAA);
     juce::Colour outputCol(0xFF00D4AA);
-    const float opSize = 16.f;
+    const float opSize = 12.f;
 
     // Natural canvas height: tallest algos (5,6) use y fractions 0.25..0.75.
     // Content pixel span = 0.5*uh + opSize. Set uh=36 → span=18+16=34, naturalH=34+10=44px.
     // This is the minimum height that fits all diagrams; the component can be taller —
     // the canvas is centred vertically inside whatever area is passed.
-    const float naturalH = 44.f;
+    const float naturalH = 64.f;
     const float naturalW = (float)area.getWidth();
     const float canvasY  = area.getY() + (area.getHeight() - naturalH) * 0.5f;
-    const float mg = 4.f;
-    const float uw = naturalW - mg * 2.f;
-    const float uh = naturalH - mg * 2.f;   // = 36px
+    const float mg = 1.f;
+    const float uw = naturalW - mg * 3.f;
+    const float uh = naturalH - mg * 4.f;   // = 36px
     const float bx = area.getX() + mg;
     const float by = canvasY + mg;
 
@@ -54,40 +54,46 @@ static void drawAlgorithm (juce::Graphics& g, int algo, juce::Rectangle<int> are
     auto ln = [&](float x1,float y1,float x2,float y2){
         g.setColour(lineCol); g.drawLine(x1,y1,x2,y2,1.5f);
     };
-    auto out = [&](float x, float y){
-        g.setColour(lineCol); g.drawLine(x,y,(float)area.getRight(),y,1.5f);
-        g.setColour(outputCol); g.fillEllipse(area.getRight()-4,y-4,8,8);
+    auto out = [&](float x, float y, float x2, float y2){
+        g.setColour(lineCol); g.drawLine(x,y,x2,y2,1.5f);
+        g.setColour(outputCol); g.fillEllipse(x2-4,y2-4,8,8);
     };
 
     switch (algo) {
-    case 0:{float sp=uw/4.5f,y=by+uh/2,x1=bx+sp*.7f,x2=bx+sp*1.7f,x3=bx+sp*2.7f,x4=bx+sp*3.7f;
+    case 0:{float sp=uw/4.8f,y=by+uh/2,x1=bx+sp*.5f,x2=bx+sp*1.5f,x3=bx+sp*2.5f,x4=bx+sp*3.5f,x5=bx+sp*4.2f;
         ln(x1+opSize/2,y,x2-opSize/2,y);ln(x2+opSize/2,y,x3-opSize/2,y);
-        ln(x3+opSize/2,y,x4-opSize/2,y);out(x4+opSize/2,y);
+        ln(x3+opSize/2,y,x4-opSize/2,y);out(x4+opSize/2,y, x5+opSize/2, y);
         drawOp(x1,y,1,true);drawOp(x2,y,2);drawOp(x3,y,3);drawOp(x4,y,4);break;}
-    case 1:{float x1=bx+uw*.25f,x3=bx+uw*.55f,x4=bx+uw*.85f,y1=by+uh*.3f,y2=by+uh*.7f,ym=by+uh*.5f;
+    case 1:{float x1=bx+uw*.20f,x3=bx+uw*.40f,x4=bx+uw*.60f, x5=bx+uw*0.75f, y1=by+uh*.3f,y2=by+uh*.7f,ym=by+uh*.5f;
         ln(x1+opSize/2,y1,x3-opSize/2,ym);ln(x1+opSize/2,y2,x3-opSize/2,ym);
-        ln(x3+opSize/2,ym,x4-opSize/2,ym);out(x4+opSize/2,ym);
+        ln(x3+opSize/2,ym,x4-opSize/2,ym);out(x4+opSize/2,ym, x5+opSize/2, ym);
         drawOp(x1,y1,1,true);drawOp(x1,y2,2);drawOp(x3,ym,3);drawOp(x4,ym,4);break;}
-    case 2:{float x1=bx+uw*.25f,x3=bx+uw*.55f,x4=bx+uw*.85f,y1=by+uh*.3f,y2=by+uh*.7f,ym=by+uh*.5f;
-        ln(x1+opSize/2,y1,x4-opSize/2,ym);ln(x1+opSize/2,y2,x3-opSize/2,y2);
-        ln(x3+opSize/2,y2,x4-opSize/2,ym);out(x4+opSize/2,ym);
+    case 2:{float x1=bx+uw*.20f,x3=bx+uw*.40f,x4=bx+uw*.60f, x5=bx+uw*.75f, y1=by+uh*.3f,y2=by+uh*.7f,ym=by+uh*.5f;
+        ln(x1+opSize/2,y1,x3+opSize/2,y1);
+        ln(x3+opSize/2,y1,x4-opSize/2,ym);
+        ln(x1+opSize/2,y2,x3-opSize/2,y2);
+        ln(x3+opSize/2,y2,x4-opSize/2,ym);
+        out(x4+opSize/2,ym, x5+opSize/2, ym);
         drawOp(x1,y1,1,true);drawOp(x1,y2,2);drawOp(x3,y2,3);drawOp(x4,ym,4);break;}
-    case 3:{float x1=bx+uw*.25f,x2=bx+uw*.5f,x4=bx+uw*.85f,y1=by+uh*.3f,y3=by+uh*.7f,ym=by+uh*.5f;
-        ln(x1+opSize/2,y1,x2-opSize/2,y1);ln(x2+opSize/2,y1,x4-opSize/2,ym);
-        ln(x1+opSize/2,y3,x4-opSize/2,ym);out(x4+opSize/2,ym);
+    case 3:{float x1=bx+uw*.2f,x2=bx+uw*.4f,x4=bx+uw*.6f, x5=bx+uw*.75f, y1=by+uh*.3f,y3=by+uh*.7f,ym=by+uh*.5f;
+        ln(x1+opSize/2,y1,x2-opSize/2,y1);
+        ln(x2+opSize/2,y1,x4-opSize/2,ym);
+        ln(x1+opSize/2,y3,x2+opSize/2,y3);
+        ln(x2+opSize/2,y3,x4-opSize/2,ym);
+        out(x4+opSize/2,ym, x5+opSize/2, ym);
         drawOp(x1,y1,1,true);drawOp(x2,y1,2);drawOp(x1,y3,3);drawOp(x4,ym,4);break;}
-    case 4:{float x1=bx+uw*.3f,x2=bx+uw*.65f,y1=by+uh*.35f,y2=by+uh*.65f;
-        ln(x1+opSize/2,y1,x2-opSize/2,y1);out(x2+opSize/2,y1);
-        ln(x1+opSize/2,y2,x2-opSize/2,y2);out(x2+opSize/2,y2);
+    case 4:{float x1=bx+uw*.2f,x2=bx+uw*.5f,x3=bx+uw*.75f, y1=by+uh*.33f,ym=by+uh*.5f, y2=by+uh*.66f;
+        ln(x1+opSize/2,y1,x2-opSize/2,y1);out(x2+opSize/2,y1, x3+opSize/2, ym);
+        ln(x1+opSize/2,y2,x2-opSize/2,y2);out(x2+opSize/2,y2, x3+opSize/2, ym);
         drawOp(x1,y1,1,true);drawOp(x2,y1,2);drawOp(x1,y2,3);drawOp(x2,y2,4);break;}
-    case 5:{float x1=bx+uw*.25f,x2=bx+uw*.7f,y1=by+uh*.25f,y2=by+uh*.5f,y3=by+uh*.75f;
-        ln(x1+opSize/2,y2,x2-opSize/2,y1);out(x2+opSize/2,y1);
-        ln(x1+opSize/2,y2,x2-opSize/2,y2);out(x2+opSize/2,y2);
-        ln(x1+opSize/2,y2,x2-opSize/2,y3);out(x2+opSize/2,y3);
+    case 5:{float x1=bx+uw*.25f,x2=bx+uw*.5f, x3=bx+uw*.75f, y1=by+uh*.25f,y2=by+uh*.5f,y3=by+uh*.75f;
+        ln(x1+opSize/2,y2,x2-opSize/2,y1);out(x2+opSize/2,y1, x3+opSize/2, y2);
+        ln(x1+opSize/2,y2,x2-opSize/2,y2);out(x2+opSize/2,y2, x3+opSize/2, y2);
+        ln(x1+opSize/2,y2,x2-opSize/2,y3);out(x2+opSize/2,y3, x3+opSize/2, y2);
         drawOp(x1,y2,1,true);drawOp(x2,y1,2);drawOp(x2,y2,3);drawOp(x2,y3,4);break;}
-    case 6:{float x1=bx+uw*.3f,x2=bx+uw*.6f,y1=by+uh*.25f,y2=by+uh*.5f,y3=by+uh*.75f;
-        ln(x1+opSize/2,y1,x2-opSize/2,y1);out(x2+opSize/2,y1);
-        out(x2+opSize/2,y2);out(x2+opSize/2,y3);
+    case 6:{float x1=bx+uw*.25f,x2=bx+uw*.5f, x3=bx+uw*.75f, y1=by+uh*.25f,y2=by+uh*.5f,y3=by+uh*.75f;
+        ln(x1+opSize/2,y1,x2-opSize/2,y1);out(x2+opSize/2,y1, x3+opSize/2, y2);
+        out(x2+opSize/2,y2, x3+opSize/2, y2);out(x2+opSize/2,y3, x3+opSize/2, y2 );
         drawOp(x1,y1,1,true);drawOp(x2,y1,2);drawOp(x2,y2,3);drawOp(x2,y3,4);break;}
     case 7:{float sp=uw/5.f,y=by+uh*.4f,yOut=by+uh*.75f,xOut=(float)area.getCentreX();
         float x1=bx+sp,x2=bx+sp*2,x3=bx+sp*3,x4=bx+sp*4;
@@ -243,7 +249,7 @@ public:
         g.setColour(juce::Colour(0xFF2a2a3e));
         g.drawRoundedRectangle(b.toFloat(), 4.f, 1.f);
 
-        drawAlgorithm(g, selectedAlgo, b.reduced(6));
+        drawAlgorithm(g, selectedAlgo, b.reduced(16));
     }
 
     void mouseDown (const juce::MouseEvent&) override { showModal(); }

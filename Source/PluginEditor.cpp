@@ -372,7 +372,7 @@ void ARM2612AudioProcessorEditor::resized()
     // Column 1: Algorithm (square)
     int col1X = static_cast<int>(kMargin * 0.5f) + pad;
     int algoSize = colW - pad * 2;  // Square
-    algorithmSelector.setBounds(col1X, globalY + 8, algoSize, algoSize);
+    algorithmSelector.setBounds(col1X, globalY + 8, algoSize, 60 );
     
     // Column 2: Feedback + Octave
     int col2X = static_cast<int>(kMargin * 0.5f) + colW + pad;
