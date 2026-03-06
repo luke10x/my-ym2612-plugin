@@ -248,12 +248,12 @@ void ARM2612AudioProcessorEditor::setupGlobalControls()
 void ARM2612AudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
 {
     bool carrier = OP_CARRIER[opIdx];
-    juce::Colour colAccent = carrier ? YmColors::accent : YmColors::mod;
+    juce::Colour colAccent = YmColors::getOpColor(opIdx);  // Use operator-specific color
 
     col.nameLabel.setText(OP_NAME[opIdx], juce::dontSendNotification);
     col.nameLabel.setFont(juce::Font(14.0f, juce::Font::bold));
     col.nameLabel.setColour(juce::Label::textColourId, colAccent);
-    col.nameLabel.setJustificationType(juce::Justification::centred);
+    col.nameLabel.setJustificationType(juce::Justification::centredLeft);  // Left-aligned
     addAndMakeVisible(col.nameLabel);
 
     col.envDisplay.setParams(
@@ -262,7 +262,7 @@ void ARM2612AudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
         dynamic_cast<juce::RangedAudioParameter*>(audioProcessor.apvts.getParameter(OP_SL_ID[opIdx])),
         dynamic_cast<juce::RangedAudioParameter*>(audioProcessor.apvts.getParameter(OP_SR_ID[opIdx])),
         dynamic_cast<juce::RangedAudioParameter*>(audioProcessor.apvts.getParameter(OP_RR_ID[opIdx])),
-        carrier);
+        carrier, opIdx);
     addAndMakeVisible(col.envDisplay);
 
     for (int s = 0; s < NUM_SLIDERS; s++) {
@@ -315,9 +315,7 @@ void ARM2612AudioProcessorEditor::setupSlider(SliderRow& row, const juce::String
 void ARM2612AudioProcessorEditor::setupToggle(ToggleRow& row, const juce::String& paramId,
                                                        juce::Colour colour)
 {
-    row.toggle.setButtonText("");
-    row.toggle.setColour(juce::ToggleButton::tickColourId, colour);
-    row.toggle.setColour(juce::ToggleButton::tickDisabledColourId, dim);
+    row.toggle.setOperatorColor(colour);  // Set color for custom AM button
     addAndMakeVisible(row.toggle);
 
     row.label.setFont(juce::Font(10.5f));
@@ -369,35 +367,36 @@ void ARM2612AudioProcessorEditor::resized()
     const int colW = (getWidth() - kMargin) / 4;
     const int pad = 8;
     
-    // Column 1: Algorithm + Feedback
+    // Column 1: Algorithm + Feedback + Octave (swapped order)
     int col1X = static_cast<int>(kMargin * 0.5f) + pad;
-    int algoSize = colW - pad * 2;  // Square
+    int algoSize = colW - pad * 2;
     algorithmSelector.setBounds(col1X, globalY + 8, algoSize, 60);  // Fixed 60px height
     
     // Feedback below algorithm
-    globalFb.label.setBounds(col1X, globalY + 76, 60, 20);
+    globalFb.label.setBounds(col1X, globalY + 76, 60, 18);
     globalFb.label.setFont(juce::Font(11.0f));
-    feedbackSlider.setBounds(col1X + 4, globalY + 96, colW - pad * 2 - 4, 22);
+    feedbackSlider.setBounds(col1X + 4, globalY + 94, colW - pad * 2 - 4, 22);
     
-    // Column 2: Octave + LFO
+    // Octave below feedback
+    globalOct.label.setBounds(col1X, globalY + 122, 60, 18);
+    globalOct.label.setFont(juce::Font(11.0f));
+    octaveSlider.setBounds(col1X + 4, globalY + 140, colW - pad * 2 - 4, 22);
+    
+    // Column 2: LFO only
     int col2X = static_cast<int>(kMargin * 0.5f) + colW + pad;
     
-    globalOct.label.setBounds(col2X, globalY + 8, 60, 20);
-    globalOct.label.setFont(juce::Font(11.0f));
-    octaveSlider.setBounds(col2X + 4, globalY + 28, colW - pad * 2 - 4, 22);
-    
-    globalLfoFreq.label.setBounds(col2X, globalY + 58, colW - pad * 2, 14);
+    globalLfoFreq.label.setBounds(col2X, globalY + 8, colW - pad * 2, 14);
     globalLfoFreq.label.setFont(juce::Font(11.0f));
-    lfoFreqBox.setBounds(col2X, globalY + 74, colW - pad * 2, 24);
+    lfoFreqBox.setBounds(col2X, globalY + 24, colW - pad * 2, 24);
     
-    // Column 3: AMS + FMS
+    // Column 3: AMS + FMS (tighter spacing)
     int col3X = static_cast<int>(kMargin * 0.5f) + colW * 2 + pad;
     
-    globalAms.label.setBounds(col3X, globalY + 8, 40, 20);
+    globalAms.label.setBounds(col3X, globalY + 8, 40, 18);
     globalAms.label.setFont(juce::Font(11.0f));
     amsSlider.setBounds(col3X + 42, globalY + 8, colW - pad * 2 - 42, 22);
     
-    globalFms.label.setBounds(col3X, globalY + 36, 40, 20);
+    globalFms.label.setBounds(col3X, globalY + 36, 40, 18);
     globalFms.label.setFont(juce::Font(11.0f));
     fmsSlider.setBounds(col3X + 42, globalY + 36, colW - pad * 2 - 42, 22);
     
@@ -410,16 +409,16 @@ void ARM2612AudioProcessorEditor::resized()
     importBtn.setBounds(col4X, globalY + 40, colW - pad * 2, 28);
     exportBtn.setBounds(col4X, globalY + 74, colW - pad * 2, 28);
     
-    // Phase lock toggle at bottom of column 4
-    phaseLockToggle.setBounds(col4X, globalY + 112, colW - pad * 2, 24);
+    // Phase lock toggle
+    phaseLockToggle.setBounds(col4X, globalY + 110, colW - pad * 2, 24);
     
     // Version label at very bottom of column 4
     versionLabel.setBounds(col4X, globalY + kGlobalH - 16, colW - pad * 2, 14);
     
-    // Oscilloscope spanning columns 2-3 at bottom
-    int scopeY = globalY + 112;  // Below all other controls
+    // Oscilloscope spanning columns 2-3 at bottom (starts lower to accommodate LFO)
+    int scopeY = globalY + 56;  // Below LFO dropdown
     int scopeW = colW * 2 - pad * 2;
-    int scopeH = kGlobalH - 112 - pad;  // Fill remaining space to bottom of global panel
+    int scopeH = kGlobalH - 56 - pad;  // Fill remaining space
     oscilloscope.setBounds(col2X, scopeY, scopeW, scopeH);
 
     // Operator columns below global panel
@@ -439,8 +438,9 @@ void ARM2612AudioProcessorEditor::resized()
         const int cx = static_cast<int>(kMargin * 0.5f) + op * colW;
         int y = opAreaY + kPad;
 
-        // Header - operator name only
-        ops[op].nameLabel.setBounds(cx + 2, y + 8, colW - 4, 20);
+        // Header - operator name on left (left-aligned), AM toggle on right
+        ops[op].nameLabel.setBounds(cx + 4, y + 8, colW - 34, 20);  // Left-aligned with padding
+        ops[op].amRow.toggle.setBounds(cx + colW - 28, y + 8, 24, 24);
         y += kHeaderH;
 
         const int labelW = 52, sliderX = cx + labelW + 2, sliderW = colW - labelW - 6;
@@ -484,17 +484,12 @@ void ARM2612AudioProcessorEditor::resized()
         ops[op].rsRow.label.setBounds(cx + 2, rowMidY - 9, labelW, 18);
         ops[op].rsRow.slider.setBounds(sliderX, rowMidY - 12, sliderW, 24);
         y += kSliderH;
-
-        // AM Enable
-        ops[op].amRow.label.setText("AM Enable", juce::dontSendNotification);
-        ops[op].amRow.label.setBounds(cx + 2, y, labelW, kToggleH);
-        ops[op].amRow.toggle.setBounds(sliderX, y + 4, 24, 24);
     }
 
     // MIDI keyboard - centered with background padding
     const int opAreaH = kHeaderH + kSliderH + kEnvH + kEnvH +  // SSG now same height as envelope
                         NUM_SLIDERS_AFTER_ENV * kSliderH + NUM_SLIDERS_EXTRA * kSliderH + 
-                        kSliderH + kToggleH + kPad * 2;
+                        kSliderH + kPad * 2;  // AM moved to header, no kToggleH needed
     const int kbY = kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin;
     const int kbWidth = getWidth() - kMargin * 4;  // Inset from edges
     const int kbX = (getWidth() - kbWidth) / 2;
