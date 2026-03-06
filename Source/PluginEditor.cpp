@@ -53,11 +53,11 @@ ARM2612AudioProcessorEditor::ARM2612AudioProcessorEditor(
     const int opAreaH = kHeaderH + kSliderH + kEnvH + kEnvH +  // SSG same height as envelope
                         NUM_SLIDERS_AFTER_ENV * kSliderH + NUM_SLIDERS_EXTRA * kSliderH + 
                         kSliderH + kPad * 2;  // AM in header now
-    const int kbPanelH = kKeyboardH + kPad * 2;  // Footer panel with padding
-    const int totalH  = kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin + kbPanelH + kMargin;
+    const int kbPadTop = 20;  // 20px top padding
+    const int kbPanelH = kKeyboardH + kbPadTop + kPad;  // Footer panel with top and bottom padding
+    const int totalH  = kMargin + kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin + kbPanelH + kMargin;  // Include top margin
     setSize(720, totalH);
-    setResizable(true, true);
-    setResizeLimits(600, totalH, 1600, totalH + 100);
+    setResizable(false, false);  // Non-resizable
     
     addAndMakeVisible(oscilloscope);
     
@@ -353,10 +353,23 @@ void ARM2612AudioProcessorEditor::paint(juce::Graphics& g)
     }
     
     // Horizontal separators between envelope params and Multi/Detune (in each operator column)
-    // Appears after Release (row index 5) and before Multi (row index 6)
-    const int separatorY = opAreaY + kHeaderH + kSliderH + kEnvH + kEnvH + 
-                           NUM_SLIDERS_AFTER_ENV * kSliderH;  // After Release
-    g.setColour(YmColors::border.withAlpha(0.3f));  // Subtle
+    // Need to calculate the actual gap between Release slider bottom and Multi slider top
+    // Sliders are 24px tall, centered vertically in a kSliderH (44px) row
+    // Release slider: rowMidY - 12 to rowMidY + 12 (24px tall)
+    // The Release row ends at: opAreaY + kHeaderH + kSliderH + kEnvH + kEnvH + (NUM_SLIDERS_AFTER_ENV * kSliderH)
+    // Within that row, slider center is at kSliderH/2, so slider bottom is at kSliderH/2 + 12
+    const int releaseRowY = opAreaY + kHeaderH + kSliderH + kEnvH + kEnvH + 
+                            (NUM_SLIDERS_AFTER_ENV - 1) * kSliderH;  // Start of Release row
+    const int releaseSliderBottom = releaseRowY + kSliderH / 2 + 12;  // Slider center + half height
+    
+    // Multi row starts one kSliderH later
+    const int multiRowY = releaseRowY + kSliderH;
+    const int multiSliderTop = multiRowY + kSliderH / 2 - 12;  // Slider center - half height
+    
+    // Separator exactly in the middle of the gap, then moved 6px down
+    const int separatorY = (releaseSliderBottom + multiSliderTop) / 2 + 6;
+    
+    g.setColour(YmColors::border);  // Same visibility as operator dividers
     for (int op = 0; op < 4; op++) {
         float x1 = kMargin * 0.5f + op * colW + 8;
         float x2 = kMargin * 0.5f + (op + 1) * colW - 8;
@@ -365,7 +378,8 @@ void ARM2612AudioProcessorEditor::paint(juce::Graphics& g)
     
     // Footer panel background (keyboard section)
     const int kbPanelY = opAreaY + opAreaH + kMargin;
-    const int kbPanelH = kKeyboardH + kPad * 2;
+    const int kbPadTop = 20;
+    const int kbPanelH = kKeyboardH + kbPadTop + kPad;  // Top + bottom padding
     g.setColour(panel);
     g.fillRoundedRectangle(kMargin * 0.5f, static_cast<float>(kbPanelY),
                            getWidth() - kMargin, static_cast<float>(kbPanelH), 6.0f);
@@ -498,12 +512,13 @@ void ARM2612AudioProcessorEditor::resized()
         y += kSliderH;
     }
 
-    // MIDI keyboard - centered within footer panel
+    // MIDI keyboard - centered within footer panel with top padding
     const int opAreaH = kHeaderH + kSliderH + kEnvH + kEnvH +  // SSG now same height as envelope
                         NUM_SLIDERS_AFTER_ENV * kSliderH + NUM_SLIDERS_EXTRA * kSliderH + 
                         kSliderH + kPad * 2;  // AM moved to header, no kToggleH needed
     const int kbPanelY = kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin;
-    const int kbY = kbPanelY + kPad;  // Add padding within footer panel
+    const int kbPadTop = 20;  // 20px top padding
+    const int kbY = kbPanelY + kbPadTop;  // Add top padding within footer panel
     
     // Calculate proper keyboard width to avoid white background overflow
     // MidiKeyboardComponent calculates its own required width based on key range
