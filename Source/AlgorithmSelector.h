@@ -186,6 +186,11 @@ class AlgorithmSelector : public juce::Component
 public:
     std::function<void(int)> onChange;
 
+    AlgorithmSelector() 
+    { 
+        // Component::setTooltip("Operator routing topology");
+    }
+
     void setSelectedAlgorithm (int a) { selectedAlgo=juce::jlimit(0,7,a); repaint(); }
     int  getSelectedAlgorithm() const  { return selectedAlgo; }
 
@@ -194,7 +199,7 @@ public:
         auto b = getLocalBounds();
         g.setColour(juce::Colour(0xFF556070));
         g.setFont(juce::Font("Courier New", 9.f, juce::Font::plain));
-        g.drawText("Algorithm", b.removeFromTop(14), juce::Justification::centredLeft);
+        g.drawText("ALGO", b.removeFromTop(14), juce::Justification::centredLeft);
 
         g.setColour(juce::Colour(0xFF161625));
         g.fillRoundedRectangle(b.toFloat(), 4.f);

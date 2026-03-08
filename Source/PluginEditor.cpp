@@ -55,9 +55,16 @@ ARM2612AudioProcessorEditor::ARM2612AudioProcessorEditor(
                         kSliderH + kPad * 2;  // AM in header now
     const int kbPadTop = 20;  // 20px top padding
     const int kbPanelH = kKeyboardH + kbPadTop + kPad;  // Footer panel with top and bottom padding
-    const int totalH  = kMargin + kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin + kbPanelH + kMargin;  // Include top margin
+    const int totalH  = kMargin + kTitleH + kMargin + kGlobalH + kMargin + opAreaH + kMargin + kbPanelH + kMargin;
     setSize(720, totalH);
     setResizable(false, false);  // Non-resizable
+    
+    // Set tooltips on global controls
+    feedbackSlider.setTooltip("Self feedback of operator 1");
+    octaveSlider.setTooltip("Frequency block (octave)");
+    lfoFreqBox.setTooltip("Global LFO oscillator frequency");
+    amsSlider.setTooltip("LFO amplitude modulation sensitivity");
+    fmsSlider.setTooltip("LFO pitch modulation sensitivity");
     
     addAndMakeVisible(oscilloscope);
     
@@ -71,6 +78,9 @@ ARM2612AudioProcessorEditor::ARM2612AudioProcessorEditor(
     versionLabel.setText("v dev", juce::dontSendNotification);
 #endif
     addAndMakeVisible(versionLabel);
+    
+    // Initialize tooltip window
+    tooltipWindow.setMillisecondsBeforeTipAppears(500);  // 500ms delay
 
     startTimerHz(30);
 }
@@ -123,9 +133,10 @@ void ARM2612AudioProcessorEditor::setupGlobalControls()
     globalFb.slAtt = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.apvts, GLOBAL_FEEDBACK, feedbackSlider);
     globalFb.label.setText("FB", juce::dontSendNotification);
-    globalFb.label.setJustificationType(juce::Justification::centredRight);
+    globalFb.label.setJustificationType(juce::Justification::centredLeft);
     globalFb.label.setFont(juce::Font(11.0f));
     globalFb.label.setColour(juce::Label::textColourId, dim);
+    globalFb.label.setTooltip("Self feedback of operator 1");
     addAndMakeVisible(globalFb.label);
     addAndMakeVisible(feedbackSlider);
 
@@ -138,6 +149,7 @@ void ARM2612AudioProcessorEditor::setupGlobalControls()
     globalLfoFreq.label.setJustificationType(juce::Justification::centredLeft);
     globalLfoFreq.label.setFont(juce::Font(10.0f));
     globalLfoFreq.label.setColour(juce::Label::textColourId, dim);
+    globalLfoFreq.label.setTooltip("Global LFO oscillator frequency");
     addAndMakeVisible(globalLfoFreq.label);
     addAndMakeVisible(lfoFreqBox);
 
@@ -152,6 +164,7 @@ void ARM2612AudioProcessorEditor::setupGlobalControls()
     globalAms.label.setJustificationType(juce::Justification::centredRight);
     globalAms.label.setFont(juce::Font(11.0f));
     globalAms.label.setColour(juce::Label::textColourId, dim);
+    globalAms.label.setTooltip("LFO amplitude modulation sensitivity");
     addAndMakeVisible(globalAms.label);
     addAndMakeVisible(amsSlider);
 
@@ -166,6 +179,7 @@ void ARM2612AudioProcessorEditor::setupGlobalControls()
     globalFms.label.setJustificationType(juce::Justification::centredRight);
     globalFms.label.setFont(juce::Font(11.0f));
     globalFms.label.setColour(juce::Label::textColourId, dim);
+    globalFms.label.setTooltip("LFO pitch modulation sensitivity");
     addAndMakeVisible(globalFms.label);
     addAndMakeVisible(fmsSlider);
 
@@ -177,9 +191,10 @@ void ARM2612AudioProcessorEditor::setupGlobalControls()
     globalOct.slAtt = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.apvts, GLOBAL_OCTAVE, octaveSlider);
     globalOct.label.setText("BLOCK", juce::dontSendNotification);
-    globalOct.label.setJustificationType(juce::Justification::centredRight);
+    globalOct.label.setJustificationType(juce::Justification::centredLeft);
     globalOct.label.setFont(juce::Font(11.0f));
     globalOct.label.setColour(juce::Label::textColourId, dim);
+    globalOct.label.setTooltip("Frequency block (octave)");
     addAndMakeVisible(globalOct.label);
     addAndMakeVisible(octaveSlider);
     
@@ -298,10 +313,18 @@ void ARM2612AudioProcessorEditor::setupSlider(SliderRow& row, const juce::String
     sl.setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
     sl.setColour(juce::Slider::textBoxBackgroundColourId, panel);
     addAndMakeVisible(sl);
+    
+    // Set tooltip from parameter's label attribute
+    juce::String tooltip = "";
+    if (auto* param = audioProcessor.apvts.getParameter(paramId))
+        tooltip = param->getLabel();
+    
+    sl.setTooltip(tooltip);
 
     row.label.setFont(juce::Font(10.5f));
     row.label.setColour(juce::Label::textColourId, dim);
     row.label.setJustificationType(juce::Justification::centredRight);
+    row.label.setTooltip(tooltip);  // Also on label
     addAndMakeVisible(row.label);
 
     row.att = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
@@ -313,6 +336,10 @@ void ARM2612AudioProcessorEditor::setupToggle(ToggleRow& row, const juce::String
 {
     row.toggle.setOperatorColor(colour);  // Set color for custom AM button
     addAndMakeVisible(row.toggle);
+    
+    // Set tooltip from parameter's label attribute
+    if (auto* param = audioProcessor.apvts.getParameter(paramId))
+        row.toggle.setTooltip(param->getLabel());
 
     row.label.setFont(juce::Font(10.5f));
     row.label.setColour(juce::Label::textColourId, dim);
@@ -469,7 +496,7 @@ void ARM2612AudioProcessorEditor::resized()
         ops[op].amRow.toggle.setBounds(cx + colW - 28, y + 8, 24, 24);
         y += kHeaderH;
 
-        const int labelW = 52, sliderX = cx + labelW + 2, sliderW = colW - labelW - 6;
+        const int labelW = 28, sliderX = cx + labelW + 2, sliderW = colW - labelW - 6;  // Reduced from 52 to 28 for short names
 
         // Level slider (before envelope)
         int rowMidY = y + kSliderH / 2;

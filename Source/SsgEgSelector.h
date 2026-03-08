@@ -210,7 +210,10 @@ private:
 class SsgEgSelector : public juce::Component
 {
 public:
-    SsgEgSelector() = default;
+    SsgEgSelector() 
+    {
+        // Component::setTooltip("SSG envelope mode");
+    }
 
     void setSelectedMode(int mode)
     {

@@ -191,6 +191,7 @@ private:
     juce::TextButton importBtn, exportBtn;
     juce::Label instrumentNameLabel;
     juce::Label versionLabel;
+    juce::TooltipWindow tooltipWindow;  // Global tooltip window
     OscilloscopeDisplay oscilloscope;
 
     LabeledControl globalAlgo, globalFb, globalLfoEn, globalLfoFreq,
