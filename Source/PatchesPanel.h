@@ -96,19 +96,37 @@ public:
     std::function<void()> onClose;
     std::function<void(int)> onPatchSelected;
     
-    PatchesPanel() : patchList("Patches", nullptr), selectedPatch(0)
+    PatchesPanel() : patchList("Patches", nullptr), selectedPatch(0), codeModified(false)
     {
         setInterceptsMouseClicks(true, true);
         
-        // Code display (left side)
+        // Code display (left side) - now editable
         codeDisplay.setMultiLine(true);
-        codeDisplay.setReadOnly(true);
+        codeDisplay.setReadOnly(false);  // Editable
         codeDisplay.setFont(juce::Font(juce::Font::getDefaultMonospacedFontName(), 11.0f, juce::Font::plain));
         codeDisplay.setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xFF0D0D1A));
         codeDisplay.setColour(juce::TextEditor::textColourId, juce::Colour(0xFF00D4AA));
         codeDisplay.setColour(juce::TextEditor::outlineColourId, juce::Colour(0xFF252540));
         codeDisplay.setText(kBuiltInPatches[0].code);
+        codeDisplay.onTextChange = [this]() { 
+            codeModified = true; 
+            validateButton.setEnabled(true);
+        };
         addAndMakeVisible(codeDisplay);
+        
+        // Error display
+        errorLabel.setFont(juce::Font("Courier New", 10.0f, juce::Font::plain));
+        errorLabel.setColour(juce::Label::textColourId, juce::Colour(0xFFFF4444));
+        errorLabel.setColour(juce::Label::backgroundColourId, juce::Colour(0xFF1a1a2e));
+        errorLabel.setJustificationType(juce::Justification::centredLeft);
+        errorLabel.setText("", juce::dontSendNotification);
+        addAndMakeVisible(errorLabel);
+        
+        // Validate & Load button
+        validateButton.setButtonText("Validate & Load");
+        validateButton.setEnabled(false);  // Disabled until code is edited
+        validateButton.onClick = [this]() { validateAndLoadPatch(); };
+        addAndMakeVisible(validateButton);
         
         // Patch list (right side)
         patchList.setModel(this);
@@ -154,7 +172,15 @@ public:
         auto buttonArea = bounds.removeFromBottom(36);
         closeButton.setBounds(buttonArea.withSizeKeepingCentre(120, 36));
         
-        bounds.removeFromBottom(16); // Space above button
+        bounds.removeFromBottom(8); // Space above button
+        
+        // Validate button and error label above close button
+        auto validateArea = bounds.removeFromBottom(30);
+        validateButton.setBounds(validateArea.removeFromLeft(140));
+        validateArea.removeFromLeft(8);
+        errorLabel.setBounds(validateArea);
+        
+        bounds.removeFromBottom(8); // Space above validate section
         
         // Split remaining area: code on left (60%), list on right (40%)
         auto listArea = bounds.removeFromRight(bounds.getWidth() * 0.4f);
@@ -197,6 +223,9 @@ public:
         {
             selectedPatch = row;
             codeDisplay.setText(kBuiltInPatches[row].code);
+            codeModified = false;
+            validateButton.setEnabled(false);
+            errorLabel.setText("", juce::dontSendNotification);
         }
         
         if (onPatchSelected)
@@ -210,12 +239,221 @@ public:
         if (onClose)
             onClose();
     }
+    
+    void validateAndLoadPatch()
+    {
+        juce::String code = codeDisplay.getText();
+        juce::String error;
+        int errorLine = 0, errorCol = 0;
+        
+        if (parsePatchCode(code, error, errorLine, errorCol))
+        {
+            // Success
+            errorLabel.setText("✓ Patch valid and loaded", juce::dontSendNotification);
+            errorLabel.setColour(juce::Label::textColourId, juce::Colour(0xFF00FF88));
+            codeModified = false;
+            validateButton.setEnabled(false);
+            
+            // TODO: Actually load the parsed patch into the synth
+        }
+        else
+        {
+            // Error
+            errorLabel.setText(juce::String::formatted("Invalid patch syntax at %d:%d - %s", 
+                                                        errorLine, errorCol, error.toRawUTF8()), 
+                               juce::dontSendNotification);
+            errorLabel.setColour(juce::Label::textColourId, juce::Colour(0xFFFF4444));
+        }
+    }
+    
+    bool parsePatchCode(const juce::String& code, juce::String& error, int& errorLine, int& errorCol)
+    {
+        // Simple parser for YM2612Patch struct format
+        auto lines = juce::StringArray::fromLines(code);
+        
+        errorLine = 1;
+        errorCol = 1;
+        
+        // Track required fields
+        bool foundALG = false, foundFB = false, foundAMS = false, foundFMS = false;
+        bool foundOp = false;
+        int opCount = 0;
+        
+        for (int i = 0; i < lines.size(); ++i)
+        {
+            auto line = lines[i].trim();
+            errorLine = i + 1;
+            
+            // Skip empty lines and comments
+            if (line.isEmpty() || line.startsWith("//"))
+                continue;
+            
+            // Check for opening brace
+            if (line.contains("constexpr") && line.contains("YM2612Patch"))
+                continue;
+                
+            if (line == "{")
+                continue;
+                
+            if (line == "};")
+                continue;
+            
+            // Parse .ALG = value
+            if (line.startsWith(".ALG"))
+            {
+                if (!parseIntField(line, ".ALG", 0, 7, error, errorCol))
+                    return false;
+                foundALG = true;
+                continue;
+            }
+            
+            // Parse .FB = value
+            if (line.startsWith(".FB"))
+            {
+                if (!parseIntField(line, ".FB", 0, 7, error, errorCol))
+                    return false;
+                foundFB = true;
+                continue;
+            }
+            
+            // Parse .AMS = value
+            if (line.startsWith(".AMS"))
+            {
+                if (!parseIntField(line, ".AMS", 0, 3, error, errorCol))
+                    return false;
+                foundAMS = true;
+                continue;
+            }
+            
+            // Parse .FMS = value
+            if (line.startsWith(".FMS"))
+            {
+                if (!parseIntField(line, ".FMS", 0, 7, error, errorCol))
+                    return false;
+                foundFMS = true;
+                continue;
+            }
+            
+            // Parse .op = section
+            if (line.startsWith(".op"))
+            {
+                foundOp = true;
+                continue;
+            }
+            
+            // Parse operator arrays like {3,1,34,0,31,0,10,6,4,7,0}
+            if (foundOp && line.startsWith("{") && line.contains("}"))
+            {
+                if (!parseOperatorArray(line, error, errorCol))
+                    return false;
+                opCount++;
+                continue;
+            }
+        }
+        
+        // Check all required fields are present
+        if (!foundALG)
+        {
+            error = ".ALG field required";
+            return false;
+        }
+        if (!foundFB)
+        {
+            error = ".FB field required";
+            return false;
+        }
+        if (!foundAMS)
+        {
+            error = ".AMS field required";
+            return false;
+        }
+        if (!foundFMS)
+        {
+            error = ".FMS field required";
+            return false;
+        }
+        if (!foundOp)
+        {
+            error = ".op array required";
+            return false;
+        }
+        if (opCount != 4)
+        {
+            error = juce::String::formatted("Expected 4 operators, found %d", opCount);
+            return false;
+        }
+        
+        return true;
+    }
+    
+    bool parseIntField(const juce::String& line, const juce::String& fieldName, 
+                       int minVal, int maxVal, juce::String& error, int& errorCol)
+    {
+        auto parts = juce::StringArray::fromTokens(line, "=,", "");
+        if (parts.size() < 2)
+        {
+            error = fieldName + " value expected";
+            errorCol = line.length();
+            return false;
+        }
+        
+        int value = parts[1].trim().getIntValue();
+        if (value < minVal || value > maxVal)
+        {
+            error = juce::String::formatted("%s must be %d-%d, got %d", 
+                                           fieldName.toRawUTF8(), minVal, maxVal, value);
+            errorCol = line.indexOf(parts[1]);
+            return false;
+        }
+        
+        return true;
+    }
+    
+    bool parseOperatorArray(const juce::String& line, juce::String& error, int& errorCol)
+    {
+        // Extract values between { }
+        int start = line.indexOf("{");
+        int end = line.indexOf("}");
+        
+        if (start < 0 || end < 0)
+        {
+            error = "Operator array must be enclosed in { }";
+            return false;
+        }
+        
+        juce::String values = line.substring(start + 1, end);
+        auto parts = juce::StringArray::fromTokens(values, ",", "");
+        
+        if (parts.size() != 11)
+        {
+            error = juce::String::formatted("Operator array expects 11 values, got %d", parts.size());
+            errorCol = start;
+            return false;
+        }
+        
+        // Validate each value (all should be integers)
+        for (int i = 0; i < parts.size(); ++i)
+        {
+            if (!parts[i].trim().containsOnly("0123456789"))
+            {
+                error = juce::String::formatted("Invalid value '%s' at position %d", 
+                                               parts[i].trim().toRawUTF8(), i + 1);
+                errorCol = line.indexOf(parts[i]);
+                return false;
+            }
+        }
+        
+        return true;
+    }
 
 private:
     juce::ListBox patchList;
     juce::TextEditor codeDisplay;
     juce::TextButton closeButton;
+    juce::TextButton validateButton;
+    juce::Label errorLabel;
     int selectedPatch;
+    bool codeModified;
 };
 
 // =============================================================================
