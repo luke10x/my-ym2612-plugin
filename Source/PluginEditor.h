@@ -7,6 +7,7 @@
 #include "AlgorithmSelector.h"
 #include "SsgEgSelector.h"
 #include "OscilloscopeDisplay.h"
+#include "SettingsPanel.h"
 
 namespace YmColors {
     static const juce::Colour bg     { 0xFF0D0D1A };
@@ -170,6 +171,8 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     
+    void showSettings();  // Show settings modal
+    
     // AudioProcessorValueTreeState::Listener
     void parameterChanged(const juce::String& parameterID, float newValue) override;
 
@@ -189,10 +192,13 @@ private:
     juce::ComboBox lfoFreqBox;
     juce::Slider   feedbackSlider, amsSlider, fmsSlider, octaveSlider;
     juce::TextButton importBtn, exportBtn;
+    juce::TextButton settingsBtn;  // Settings button
     juce::Label instrumentNameLabel;
     juce::Label versionLabel;
     juce::TooltipWindow tooltipWindow;  // Global tooltip window
     OscilloscopeDisplay oscilloscope;
+    
+    bool tooltipsEnabled = true;  // Settings state
 
     LabeledControl globalAlgo, globalFb, globalLfoEn, globalLfoFreq,
                    globalAms, globalFms, globalOct;

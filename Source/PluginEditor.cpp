@@ -255,6 +255,44 @@ void ARM2612AudioProcessorEditor::setupGlobalControls()
         });
     };
     addAndMakeVisible(exportBtn);
+    
+    // Settings button
+    settingsBtn.setButtonText("Settings");
+    settingsBtn.onClick = [this]() { showSettings(); };
+    addAndMakeVisible(settingsBtn);
+}
+
+void ARM2612AudioProcessorEditor::showSettings()
+{
+    auto* root = getTopLevelComponent();
+    if (!root) return;
+    
+    auto* panel = new SettingsPanel(tooltipsEnabled);
+    
+    panel->onTooltipsChanged = [this](bool enabled) {
+        tooltipsEnabled = enabled;
+        tooltipWindow.setEnabled(enabled);
+    };
+    
+    auto* modal = new SettingsModal(panel, []() {});
+    modal->setBounds(root->getLocalBounds());
+    
+    const int pw = juce::jmin(350, (int)(root->getWidth() * 0.50f));
+    const int ph = juce::jmin(200, (int)(root->getHeight() * 0.40f));
+    
+    panel->setBounds(
+        (modal->getWidth() - pw) / 2,
+        (modal->getHeight() - ph) / 2,
+        pw, ph
+    );
+    
+    modal->onDismiss = [modal]() {
+        modal->dismiss();
+    };
+    
+    root->addAndMakeVisible(modal);
+    modal->toFront(true);
+    modal->selfReference.reset(modal);
 }
 
 void ARM2612AudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
@@ -465,6 +503,7 @@ void ARM2612AudioProcessorEditor::resized()
     
     importBtn.setBounds(col4X, globalY + 40, colW - pad * 2, 28);
     exportBtn.setBounds(col4X, globalY + 74, colW - pad * 2, 28);
+    settingsBtn.setBounds(col4X, globalY + 108, colW - pad * 2, 28);
     
     // Version label at very bottom of column 4
     versionLabel.setBounds(col4X, globalY + kGlobalH - 16, colW - pad * 2, 14);
