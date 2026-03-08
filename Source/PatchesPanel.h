@@ -8,43 +8,87 @@
 struct BuiltInPatch
 {
     juce::String name;
-    juce::String category;  // Bass, Lead, Pad, etc.
+    juce::String code;  // C++ code for the patch
 };
 
 static const BuiltInPatch kBuiltInPatches[] = {
     // Bass
-    { "Slap Bass", "Bass" },
-    { "Synth Bass", "Bass" },
-    { "Electric Bass", "Bass" },
-    { "Acoustic Bass", "Bass" },
-    
-    // Lead
-    { "Square Lead", "Lead" },
-    { "Saw Lead", "Lead" },
-    { "FM Lead", "Lead" },
-    { "Trumpet", "Lead" },
-    
-    // Pad
-    { "Soft Pad", "Pad" },
-    { "Strings", "Pad" },
-    { "Choir", "Pad" },
-    { "Brass Section", "Pad" },
-    
-    // Pluck
-    { "Piano", "Pluck" },
-    { "Marimba", "Pluck" },
-    { "Steel Drums", "Pluck" },
-    { "Harp", "Pluck" },
-    
-    // SFX
-    { "Bell", "SFX" },
-    { "Metallic", "SFX" },
-    { "Noise Sweep", "SFX" },
-    { "Thunder", "SFX" },
+    { 
+        "Slap Bass",
+        "constexpr YM2612Patch SLAP_BASS =\n"
+        "{\n"
+        "    .ALG = 4,\n"
+        "    .FB  = 5,\n"
+        "    .AMS = 2,\n"
+        "    .FMS = 3,\n"
+        "\n"
+        "    .op =\n"
+        "    {\n"
+        "        {3,1,34,0,31,0,10,6,4,7,0},\n"
+        "        {0,2,18,1,25,0,12,5,5,6,0},\n"
+        "        {0,1,0,0,31,0,6,3,6,5,0},\n"
+        "        {0,1,0,0,31,0,7,2,5,5,0}\n"
+        "    }\n"
+        "};"
+    },
+    { 
+        "Synth Bass",
+        "constexpr YM2612Patch SYNTH_BASS =\n"
+        "{\n"
+        "    .ALG = 5,\n"
+        "    .FB  = 7,\n"
+        "    .AMS = 0,\n"
+        "    .FMS = 4,\n"
+        "\n"
+        "    .op =\n"
+        "    {\n"
+        "        {0,1,20,0,31,0,15,7,3,8,0},\n"
+        "        {0,1,15,0,28,0,12,6,4,7,0},\n"
+        "        {0,0,0,0,31,0,0,0,0,0,0},\n"
+        "        {0,0,0,0,31,0,0,0,0,0,0}\n"
+        "    }\n"
+        "};"
+    },
+    { 
+        "Electric Bass",
+        "constexpr YM2612Patch ELECTRIC_BASS =\n"
+        "{\n"
+        "    .ALG = 4,\n"
+        "    .FB  = 6,\n"
+        "    .AMS = 1,\n"
+        "    .FMS = 2,\n"
+        "\n"
+        "    .op =\n"
+        "    {\n"
+        "        {2,1,28,0,31,0,12,5,4,6,0},\n"
+        "        {0,1,22,0,26,0,10,4,5,5,0},\n"
+        "        {0,1,0,0,31,0,5,3,6,4,0},\n"
+        "        {0,0,0,0,31,0,0,0,0,0,0}\n"
+        "    }\n"
+        "};"
+    },
+    { 
+        "Acoustic Bass",
+        "constexpr YM2612Patch ACOUSTIC_BASS =\n"
+        "{\n"
+        "    .ALG = 2,\n"
+        "    .FB  = 3,\n"
+        "    .AMS = 0,\n"
+        "    .FMS = 1,\n"
+        "\n"
+        "    .op =\n"
+        "    {\n"
+        "        {1,1,24,0,30,0,8,4,3,5,0},\n"
+        "        {0,2,16,1,24,0,10,5,4,6,0},\n"
+        "        {0,1,12,0,28,0,6,3,5,4,0},\n"
+        "        {0,0,0,0,31,0,0,0,0,0,0}\n"
+        "    }\n"
+        "};"
+    },
 };
 
 // =============================================================================
-// PatchesPanel - List of built-in patches
+// PatchesPanel - List of built-in patches with code preview
 // =============================================================================
 class PatchesPanel : public juce::Component, public juce::ListBoxModel
 {
@@ -52,15 +96,26 @@ public:
     std::function<void()> onClose;
     std::function<void(int)> onPatchSelected;
     
-    PatchesPanel() : patchList("Patches", nullptr)
+    PatchesPanel() : patchList("Patches", nullptr), selectedPatch(0)
     {
         setInterceptsMouseClicks(true, true);
         
-        // Patch list
+        // Code display (left side)
+        codeDisplay.setMultiLine(true);
+        codeDisplay.setReadOnly(true);
+        codeDisplay.setFont(juce::Font(juce::Font::getDefaultMonospacedFontName(), 11.0f, juce::Font::plain));
+        codeDisplay.setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xFF0D0D1A));
+        codeDisplay.setColour(juce::TextEditor::textColourId, juce::Colour(0xFF00D4AA));
+        codeDisplay.setColour(juce::TextEditor::outlineColourId, juce::Colour(0xFF252540));
+        codeDisplay.setText(kBuiltInPatches[0].code);
+        addAndMakeVisible(codeDisplay);
+        
+        // Patch list (right side)
         patchList.setModel(this);
-        patchList.setRowHeight(24);
+        patchList.setRowHeight(28);
         patchList.setColour(juce::ListBox::backgroundColourId, juce::Colour(0xFF0D0D1A));
         patchList.setColour(juce::ListBox::outlineColourId, juce::Colour(0xFF252540));
+        patchList.selectRow(0);
         addAndMakeVisible(patchList);
         
         // Close button
@@ -93,17 +148,20 @@ public:
     {
         auto bounds = getLocalBounds().reduced(16);
         bounds.removeFromTop(40); // Title area
-        
-        bounds.removeFromTop(8); // Spacing
-        
-        // Patch list
-        auto listArea = bounds;
-        listArea.removeFromBottom(52); // Space for button
-        patchList.setBounds(listArea);
+        bounds.removeFromTop(8);  // Spacing
         
         // Close button at bottom
         auto buttonArea = bounds.removeFromBottom(36);
         closeButton.setBounds(buttonArea.withSizeKeepingCentre(120, 36));
+        
+        bounds.removeFromBottom(16); // Space above button
+        
+        // Split remaining area: code on left (60%), list on right (40%)
+        auto listArea = bounds.removeFromRight(bounds.getWidth() * 0.4f);
+        listArea.removeFromLeft(8); // Gap between code and list
+        
+        codeDisplay.setBounds(bounds);
+        patchList.setBounds(listArea);
     }
     
     // ListBoxModel methods
@@ -127,19 +185,20 @@ public:
         else
             g.fillAll(juce::Colour(0xFF0D0D1A));
         
-        // Patch name
+        // Patch name (centered)
         g.setColour(rowIsSelected ? juce::Colour(0xFF00D4AA) : juce::Colour(0xFFCCCCCC));
         g.setFont(juce::Font("Courier New", 12.f, juce::Font::plain));
-        g.drawText(patch.name, 8, 0, width - 120, height, juce::Justification::centredLeft);
-        
-        // Category tag
-        g.setColour(juce::Colour(0xFF556070));
-        g.setFont(juce::Font("Courier New", 10.f, juce::Font::plain));
-        g.drawText("[" + patch.category + "]", width - 110, 0, 100, height, juce::Justification::centredLeft);
+        g.drawText(patch.name, 8, 0, width - 16, height, juce::Justification::centredLeft);
     }
     
     void listBoxItemClicked(int row, const juce::MouseEvent&) override
     {
+        if (row >= 0 && row < getNumRows())
+        {
+            selectedPatch = row;
+            codeDisplay.setText(kBuiltInPatches[row].code);
+        }
+        
         if (onPatchSelected)
             onPatchSelected(row);
     }
@@ -154,7 +213,9 @@ public:
 
 private:
     juce::ListBox patchList;
+    juce::TextEditor codeDisplay;
     juce::TextButton closeButton;
+    int selectedPatch;
 };
 
 // =============================================================================

@@ -310,7 +310,7 @@ void ARM2612AudioProcessorEditor::showPatches()
     auto* modal = new PatchesModal(panel, []() {});
     modal->setBounds(root->getLocalBounds());
     
-    const int pw = juce::jmin(450, (int)(root->getWidth() * 0.60f));
+    const int pw = juce::jmin(700, (int)(root->getWidth() * 0.90f));  // Wider for code
     const int ph = juce::jmin(500, (int)(root->getHeight() * 0.75f));
     
     panel->setBounds(
