@@ -207,7 +207,7 @@ private:
 // ─────────────────────────────────────────────────────────────────────────────
 // SsgEgSelector - Dropdown-style selector with label above diagram
 // ─────────────────────────────────────────────────────────────────────────────
-class SsgEgSelector : public juce::Component
+class SsgEgSelector : public juce::Component, public juce::SettableTooltipClient
 {
 public:
     SsgEgSelector() = default;

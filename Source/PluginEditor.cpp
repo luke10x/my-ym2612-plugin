@@ -121,6 +121,7 @@ void ARM2612AudioProcessorEditor::setupGlobalControls()
             param->setValueNotifyingHost(param->convertTo0to1(float(algo)));
     };
     addAndMakeVisible(algorithmSelector);
+    algorithmSelector.setTooltip("Operator routing topology");
     
     // Add listener for algorithm parameter changes
     audioProcessor.apvts.addParameterListener(GLOBAL_ALGORITHM, this);
@@ -294,6 +295,7 @@ void ARM2612AudioProcessorEditor::styleColumn(OpColumn& col, int opIdx)
             param->setValueNotifyingHost(param->convertTo0to1(float(mode)));
     };
     addAndMakeVisible(col.ssgModeSelector);
+    col.ssgModeSelector.setTooltip("SSG envelope mode");
     
     // Add listener for SSG-EG parameter changes
     audioProcessor.apvts.addParameterListener(OP_SSG_MODE_ID[opIdx], this);

@@ -181,7 +181,7 @@ public:
 // =============================================================================
 // AlgorithmSelector  — the preview widget shown in the global column
 // =============================================================================
-class AlgorithmSelector : public juce::Component
+class AlgorithmSelector : public juce::Component, public juce::SettableTooltipClient
 {
 public:
     std::function<void(int)> onChange;
