@@ -8,6 +8,7 @@
 #include "SsgEgSelector.h"
 #include "OscilloscopeDisplay.h"
 #include "SettingsPanel.h"
+#include "PatchesPanel.h"
 
 namespace YmColors {
     static const juce::Colour bg     { 0xFF0D0D1A };
@@ -172,6 +173,7 @@ public:
     void resized() override;
     
     void showSettings();  // Show settings modal
+    void showPatches();   // Show patches modal
     void updateTooltips(bool enabled);  // Enable/disable all tooltips
     
     // AudioProcessorValueTreeState::Listener
@@ -194,6 +196,7 @@ private:
     juce::Slider   feedbackSlider, amsSlider, fmsSlider, octaveSlider;
     juce::TextButton importBtn, exportBtn;
     juce::TextButton settingsBtn;  // Settings button
+    juce::TextButton patchesBtn;   // Patches button
     juce::Label instrumentNameLabel;
     juce::Label versionLabel;
     juce::TooltipWindow tooltipWindow;  // Global tooltip window

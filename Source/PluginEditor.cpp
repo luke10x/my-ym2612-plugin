@@ -250,6 +250,11 @@ void ARM2612AudioProcessorEditor::setupGlobalControls()
     settingsBtn.setButtonText("Settings");
     settingsBtn.onClick = [this]() { showSettings(); };
     addAndMakeVisible(settingsBtn);
+    
+    // Patches button
+    patchesBtn.setButtonText("Patches");
+    patchesBtn.onClick = [this]() { showPatches(); };
+    addAndMakeVisible(patchesBtn);
 }
 
 void ARM2612AudioProcessorEditor::showSettings()
@@ -269,6 +274,44 @@ void ARM2612AudioProcessorEditor::showSettings()
     
     const int pw = juce::jmin(350, (int)(root->getWidth() * 0.50f));
     const int ph = juce::jmin(200, (int)(root->getHeight() * 0.40f));
+    
+    panel->setBounds(
+        (modal->getWidth() - pw) / 2,
+        (modal->getHeight() - ph) / 2,
+        pw, ph
+    );
+    
+    modal->onDismiss = [modal]() {
+        modal->dismiss();
+    };
+    
+    root->addAndMakeVisible(modal);
+    modal->toFront(true);
+    modal->selfReference.reset(modal);
+}
+
+void ARM2612AudioProcessorEditor::showPatches()
+{
+    auto* root = getTopLevelComponent();
+    if (!root) return;
+    
+    auto* panel = new PatchesPanel();
+    
+    panel->onPatchSelected = [this](int patchIndex) {
+        // TODO: Load the selected patch
+        // For now, just show which patch was selected
+        DBG("Selected patch: " << kBuiltInPatches[patchIndex].name);
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::AlertWindow::InfoIcon,
+            "Patch Selected",
+            "Selected: " + kBuiltInPatches[patchIndex].name + "\n(Patch loading not yet implemented)");
+    };
+    
+    auto* modal = new PatchesModal(panel, []() {});
+    modal->setBounds(root->getLocalBounds());
+    
+    const int pw = juce::jmin(450, (int)(root->getWidth() * 0.60f));
+    const int ph = juce::jmin(500, (int)(root->getHeight() * 0.75f));
     
     panel->setBounds(
         (modal->getWidth() - pw) / 2,
@@ -540,9 +583,11 @@ void ARM2612AudioProcessorEditor::resized()
     // Instrument name at top of column 4
     instrumentNameLabel.setBounds(col4X, globalY + 8, colW - pad * 2, 24);
     
-    importBtn.setBounds(col4X, globalY + 40, colW - pad * 2, 28);
-    exportBtn.setBounds(col4X, globalY + 74, colW - pad * 2, 28);
-    settingsBtn.setBounds(col4X, globalY + 108, colW - pad * 2, 28);
+    // Buttons - 4 buttons at 26px height each
+    importBtn.setBounds(col4X, globalY + 38, colW - pad * 2, 26);
+    exportBtn.setBounds(col4X, globalY + 68, colW - pad * 2, 26);
+    patchesBtn.setBounds(col4X, globalY + 98, colW - pad * 2, 26);
+    settingsBtn.setBounds(col4X, globalY + 128, colW - pad * 2, 26);
     
     // Version label at very bottom of column 4
     versionLabel.setBounds(col4X, globalY + kGlobalH - 16, colW - pad * 2, 14);
