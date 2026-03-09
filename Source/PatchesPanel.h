@@ -27,8 +27,9 @@ public:
         codeDisplay.setColour(juce::TextEditor::outlineColourId, juce::Colour(0xFF252540));
         
         // Serialize first patch to display
-        codeDisplay.setText(PatchSerializer::serializePatch(*kBuiltInPatches[0].patch, 
-                                                            kBuiltInPatches[0].name));
+        auto& firstEntry = kBuiltInPatches[0];
+        codeDisplay.setText(PatchSerializer::serializePatch(*firstEntry.patch, firstEntry.name,
+                                                            firstEntry.block, firstEntry.lfoEnable, firstEntry.lfoFreq));
         
         codeDisplay.onTextChange = [this]() { 
             codeModified = true; 
@@ -145,7 +146,8 @@ public:
         {
             selectedPatch = row;
             auto& entry = kBuiltInPatches[row];
-            codeDisplay.setText(PatchSerializer::serializePatch(*entry.patch, entry.name));
+            codeDisplay.setText(PatchSerializer::serializePatch(*entry.patch, entry.name,
+                                                                entry.block, entry.lfoEnable, entry.lfoFreq));
             codeModified = false;
             validateButton.setEnabled(false);
             errorLabel.setText("", juce::dontSendNotification);
@@ -169,8 +171,10 @@ public:
         juce::String error;
         int errorLine = 0, errorCol = 0;
         YM2612Patch parsedPatch;
+        int parsedBlock, parsedLfoEnable, parsedLfoFreq;
         
-        if (PatchSerializer::parsePatch(code, parsedPatch, error, errorLine, errorCol))
+        if (PatchSerializer::parsePatch(code, parsedPatch, parsedBlock, parsedLfoEnable, parsedLfoFreq,
+                                       error, errorLine, errorCol))
         {
             // Success - patch parsed correctly
             errorLabel.setText("✓ Patch valid and loaded", juce::dontSendNotification);
@@ -180,7 +184,8 @@ public:
             
             // TODO: Actually load the parsed patch into the synth
             // For now just verify round-trip serialization works
-            DBG("Parsed patch - ALG:" << parsedPatch.ALG << " FB:" << parsedPatch.FB);
+            DBG("Parsed patch - ALG:" << parsedPatch.ALG << " FB:" << parsedPatch.FB 
+                << " BLOCK:" << parsedBlock << " LFO:" << parsedLfoEnable << "/" << parsedLfoFreq);
         }
         else
         {

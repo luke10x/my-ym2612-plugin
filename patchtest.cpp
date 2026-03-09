@@ -170,7 +170,7 @@ int main(int argc, char** argv)
                 if(n >= 0)
                 {
                     auto note = note_table[n];
-                    note.block -= 1;
+                    // note.block -= 1;
                     synth.set_pitch(0, note.fnum, note.block);
                     synth.key_on(0);
                 }

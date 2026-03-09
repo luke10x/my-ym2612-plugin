@@ -41,12 +41,15 @@ static constexpr YM2612Patch PATCH_SLAP_BASS =
     
     .op =
     {
-        {3, 1, 34, 0, 31, 0, 10, 6, 4, 7, 0},
-        {0, 2, 18, 1, 25, 0, 12, 5, 5, 6, 0},
-        {0, 1,  0, 0, 31, 0,  6, 3, 6, 5, 0},
-        {0, 1,  0, 0, 31, 0,  7, 2, 5, 5, 0}
+        { .DT = 3, .MUL = 1, .TL = 34, .RS = 0, .AR = 31, .AM = 0, .DR = 10, .SR = 6, .SL = 4, .RR = 7, .SSG = 0 },
+        { .DT = 0, .MUL = 2, .TL = 18, .RS = 1, .AR = 25, .AM = 0, .DR = 12, .SR = 5, .SL = 5, .RR = 6, .SSG = 0 },
+        { .DT = 0, .MUL = 1, .TL =  0, .RS = 0, .AR = 31, .AM = 0, .DR =  6, .SR = 3, .SL = 6, .RR = 5, .SSG = 0 },
+        { .DT = 0, .MUL = 1, .TL =  0, .RS = 0, .AR = 31, .AM = 0, .DR =  7, .SR = 2, .SL = 5, .RR = 5, .SSG = 0 }
     }
 };
+static constexpr int PATCH_SLAP_BASS_BLOCK = 0;      // Octave offset
+static constexpr int PATCH_SLAP_BASS_LFO_ENABLE = 0; // LFO on/off
+static constexpr int PATCH_SLAP_BASS_LFO_FREQ = 0;   // LFO frequency (0-7)
 
 static constexpr YM2612Patch PATCH_SYNTH_BASS =
 {
@@ -57,12 +60,15 @@ static constexpr YM2612Patch PATCH_SYNTH_BASS =
     
     .op =
     {
-        {0, 1, 20, 0, 31, 0, 15, 7, 3, 8, 0},
-        {0, 1, 15, 0, 28, 0, 12, 6, 4, 7, 0},
-        {0, 0,  0, 0, 31, 0,  0, 0, 0, 0, 0},
-        {0, 0,  0, 0, 31, 0,  0, 0, 0, 0, 0}
+        { .DT = 0, .MUL = 1, .TL = 20, .RS = 0, .AR = 31, .AM = 0, .DR = 15, .SR = 7, .SL = 3, .RR = 8, .SSG = 0 },
+        { .DT = 0, .MUL = 1, .TL = 15, .RS = 0, .AR = 28, .AM = 0, .DR = 12, .SR = 6, .SL = 4, .RR = 7, .SSG = 0 },
+        { .DT = 0, .MUL = 0, .TL =  0, .RS = 0, .AR = 31, .AM = 0, .DR =  0, .SR = 0, .SL = 0, .RR = 0, .SSG = 0 },
+        { .DT = 0, .MUL = 0, .TL =  0, .RS = 0, .AR = 31, .AM = 0, .DR =  0, .SR = 0, .SL = 0, .RR = 0, .SSG = 0 }
     }
 };
+static constexpr int PATCH_SYNTH_BASS_BLOCK = 0;
+static constexpr int PATCH_SYNTH_BASS_LFO_ENABLE = 1;
+static constexpr int PATCH_SYNTH_BASS_LFO_FREQ = 3;
 
 static constexpr YM2612Patch PATCH_ELECTRIC_BASS =
 {
@@ -73,12 +79,15 @@ static constexpr YM2612Patch PATCH_ELECTRIC_BASS =
     
     .op =
     {
-        {2, 1, 28, 0, 31, 0, 12, 5, 4, 6, 0},
-        {0, 1, 22, 0, 26, 0, 10, 4, 5, 5, 0},
-        {0, 1,  0, 0, 31, 0,  5, 3, 6, 4, 0},
-        {0, 0,  0, 0, 31, 0,  0, 0, 0, 0, 0}
+        { .DT = 2, .MUL = 1, .TL = 28, .RS = 0, .AR = 31, .AM = 0, .DR = 12, .SR = 5, .SL = 4, .RR = 6, .SSG = 0 },
+        { .DT = 0, .MUL = 1, .TL = 22, .RS = 0, .AR = 26, .AM = 0, .DR = 10, .SR = 4, .SL = 5, .RR = 5, .SSG = 0 },
+        { .DT = 0, .MUL = 1, .TL =  0, .RS = 0, .AR = 31, .AM = 0, .DR =  5, .SR = 3, .SL = 6, .RR = 4, .SSG = 0 },
+        { .DT = 0, .MUL = 0, .TL =  0, .RS = 0, .AR = 31, .AM = 0, .DR =  0, .SR = 0, .SL = 0, .RR = 0, .SSG = 0 }
     }
 };
+static constexpr int PATCH_ELECTRIC_BASS_BLOCK = 0;
+static constexpr int PATCH_ELECTRIC_BASS_LFO_ENABLE = 0;
+static constexpr int PATCH_ELECTRIC_BASS_LFO_FREQ = 0;
 
 static constexpr YM2612Patch PATCH_ACOUSTIC_BASS =
 {
@@ -89,26 +98,32 @@ static constexpr YM2612Patch PATCH_ACOUSTIC_BASS =
     
     .op =
     {
-        {1, 1, 24, 0, 30, 0,  8, 4, 3, 5, 0},
-        {0, 2, 16, 1, 24, 0, 10, 5, 4, 6, 0},
-        {0, 1, 12, 0, 28, 0,  6, 3, 5, 4, 0},
-        {0, 0,  0, 0, 31, 0,  0, 0, 0, 0, 0}
+        { .DT = 1, .MUL = 1, .TL = 24, .RS = 0, .AR = 30, .AM = 0, .DR =  8, .SR = 4, .SL = 3, .RR = 5, .SSG = 0 },
+        { .DT = 0, .MUL = 2, .TL = 16, .RS = 1, .AR = 24, .AM = 0, .DR = 10, .SR = 5, .SL = 4, .RR = 6, .SSG = 0 },
+        { .DT = 0, .MUL = 1, .TL = 12, .RS = 0, .AR = 28, .AM = 0, .DR =  6, .SR = 3, .SL = 5, .RR = 4, .SSG = 0 },
+        { .DT = 0, .MUL = 0, .TL =  0, .RS = 0, .AR = 31, .AM = 0, .DR =  0, .SR = 0, .SL = 0, .RR = 0, .SSG = 0 }
     }
 };
+static constexpr int PATCH_ACOUSTIC_BASS_BLOCK = 0;
+static constexpr int PATCH_ACOUSTIC_BASS_LFO_ENABLE = 0;
+static constexpr int PATCH_ACOUSTIC_BASS_LFO_FREQ = 0;
 
 // Array of all patches with metadata
 struct PatchEntry
 {
     const char* name;
     const YM2612Patch* patch;
+    int block;      // BLOCK (octave offset)
+    int lfoEnable;  // LFO enable (0/1)
+    int lfoFreq;    // LFO frequency (0-7)
 };
 
 static constexpr PatchEntry kBuiltInPatches[] = 
 {
-    { "Slap Bass",     &PATCH_SLAP_BASS },
-    { "Synth Bass",    &PATCH_SYNTH_BASS },
-    { "Electric Bass", &PATCH_ELECTRIC_BASS },
-    { "Acoustic Bass", &PATCH_ACOUSTIC_BASS },
+    { "Slap Bass",     &PATCH_SLAP_BASS,     PATCH_SLAP_BASS_BLOCK,     PATCH_SLAP_BASS_LFO_ENABLE,     PATCH_SLAP_BASS_LFO_FREQ },
+    { "Synth Bass",    &PATCH_SYNTH_BASS,    PATCH_SYNTH_BASS_BLOCK,    PATCH_SYNTH_BASS_LFO_ENABLE,    PATCH_SYNTH_BASS_LFO_FREQ },
+    { "Electric Bass", &PATCH_ELECTRIC_BASS, PATCH_ELECTRIC_BASS_BLOCK, PATCH_ELECTRIC_BASS_LFO_ENABLE, PATCH_ELECTRIC_BASS_LFO_FREQ },
+    { "Acoustic Bass", &PATCH_ACOUSTIC_BASS, PATCH_ACOUSTIC_BASS_BLOCK, PATCH_ACOUSTIC_BASS_LFO_ENABLE, PATCH_ACOUSTIC_BASS_LFO_FREQ },
 };
 
 static constexpr int kNumBuiltInPatches = sizeof(kBuiltInPatches) / sizeof(kBuiltInPatches[0]);
