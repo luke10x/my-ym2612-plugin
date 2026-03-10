@@ -166,10 +166,9 @@ void ARM2612AudioProcessor::getCurrentPatch(YM2612Patch& outPatch, int& outBlock
         outPatch.op[op].SL  = (int)apvts.getRawParameterValue(OP_SL_ID[op])->load();
         outPatch.op[op].RR  = (int)apvts.getRawParameterValue(OP_RR_ID[op])->load();
         
-        // Combine SSG enable and mode into single SSG value (0-8)
-        int ssgEn   = (int)apvts.getRawParameterValue(OP_SSG_EN_ID[op])->load();
-        int ssgMode = (int)apvts.getRawParameterValue(OP_SSG_MODE_ID[op])->load();
-        outPatch.op[op].SSG = ssgEn ? ssgMode : 0;
+        // Read SSG from mode choice (0-8): 0=disabled, 1-8=enabled with modes 0-7
+        int ssgModeChoice = (int)apvts.getRawParameterValue(OP_SSG_MODE_ID[op])->load();
+        outPatch.op[op].SSG = ssgModeChoice; // Direct mapping
     }
     
     // Read global parameters
@@ -186,8 +185,13 @@ void ARM2612AudioProcessor::loadPatch(const YM2612Patch& patch, int block, int l
     apvts.getParameter(GLOBAL_AMS)->setValueNotifyingHost(patch.AMS / 3.0f);
     apvts.getParameter(GLOBAL_FMS)->setValueNotifyingHost(patch.FMS / 7.0f);
     
-    apvts.getParameter(GLOBAL_OCTAVE)->setValueNotifyingHost(block / 7.0f);
-    apvts.getParameter(GLOBAL_LFO_ENABLE)->setValueNotifyingHost(lfoEnable);
+    // BLOCK range is -2 to +2, so normalize as (value + 2) / 4
+    apvts.getParameter(GLOBAL_OCTAVE)->setValueNotifyingHost((block + 2) / 4.0f);
+    
+    // LFO_ENABLE is boolean
+    apvts.getParameter(GLOBAL_LFO_ENABLE)->setValueNotifyingHost(lfoEnable ? 1.0f : 0.0f);
+    
+    // LFO_FREQ is 0-7 choice parameter
     apvts.getParameter(GLOBAL_LFO_FREQ)->setValueNotifyingHost(lfoFreq / 7.0f);
     
     // Set operator parameters
@@ -198,17 +202,18 @@ void ARM2612AudioProcessor::loadPatch(const YM2612Patch& patch, int block, int l
         apvts.getParameter(OP_TL_ID[op])->setValueNotifyingHost(patch.op[op].TL / 127.0f);
         apvts.getParameter(OP_RS_ID[op])->setValueNotifyingHost(patch.op[op].RS / 3.0f);
         apvts.getParameter(OP_AR_ID[op])->setValueNotifyingHost(patch.op[op].AR / 31.0f);
-        apvts.getParameter(OP_AM_ID[op])->setValueNotifyingHost(patch.op[op].AM);
+        apvts.getParameter(OP_AM_ID[op])->setValueNotifyingHost(patch.op[op].AM ? 1.0f : 0.0f); // Boolean
         apvts.getParameter(OP_DR_ID[op])->setValueNotifyingHost(patch.op[op].DR / 31.0f);
         apvts.getParameter(OP_SR_ID[op])->setValueNotifyingHost(patch.op[op].SR / 31.0f);
         apvts.getParameter(OP_SL_ID[op])->setValueNotifyingHost(patch.op[op].SL / 15.0f);
         apvts.getParameter(OP_RR_ID[op])->setValueNotifyingHost(patch.op[op].RR / 15.0f);
         
-        // Split SSG value back into enable and mode
-        int ssgEn = (patch.op[op].SSG > 0) ? 1 : 0;
-        int ssgMode = patch.op[op].SSG;
-        apvts.getParameter(OP_SSG_EN_ID[op])->setValueNotifyingHost(ssgEn);
-        apvts.getParameter(OP_SSG_MODE_ID[op])->setValueNotifyingHost(ssgMode / 8.0f);
+        // SSG value: 0=disabled, 1-8=enabled with modes 0-7
+        // Split into enable (bool) and mode (0-8 choice)
+        bool ssgEn = (patch.op[op].SSG > 0);
+        int ssgModeChoice = patch.op[op].SSG; // 0-8 directly maps to choice index
+        apvts.getParameter(OP_SSG_EN_ID[op])->setValueNotifyingHost(ssgEn ? 1.0f : 0.0f);
+        apvts.getParameter(OP_SSG_MODE_ID[op])->setValueNotifyingHost(ssgModeChoice / 8.0f);
     }
     
     // Push to voices

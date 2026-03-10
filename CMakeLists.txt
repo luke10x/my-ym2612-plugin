@@ -9,7 +9,7 @@ if(APPLE)
     add_compile_options(-Wno-error=unavailable -Wno-deprecated-declarations)
 endif()
 
-project(ARM2612 VERSION 1.0.0)
+project(ARM2612 VERSION 1.0.0)  
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -38,7 +38,7 @@ if(NOT PLUGIN_VERSION STREQUAL "dev")
         message(WARNING "Could not parse version '${PLUGIN_VERSION}', using defaults")
         set(VERSION_MAJOR 1)
         set(VERSION_MINOR 0)
-        set(VERSION_PATCH 0)
+        set(VERSION_PATCH 1)
     endif()
 else()
     # Development build - use version 0.0.0
@@ -105,7 +105,7 @@ juce_add_plugin(ARM2612
     COMPANY_NAME            "Arminas ir Lukas"
     BUNDLE_ID               "com.arminasirlukas.arm2612"
     PLUGIN_MANUFACTURER_CODE "ArLu"
-    PLUGIN_CODE              "Arm2"
+    PLUGIN_CODE              "Arm3"
 
     FORMATS                 ${PLUGIN_FORMATS}
 
